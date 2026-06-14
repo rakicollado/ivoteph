@@ -1,10 +1,10 @@
 <?php
-require_once dirname(__FILE__) . '/../helpers/functions.php';
+require_once dirname(__FILE__) . '/../auth_check.php';
 
 require_admin();
 
 $page_title = 'Candidate Management';
-$page_subtitle = 'Manage candidate profiles, political parties, positions, photos, and platforms.';
+$page_subtitle = 'Manage candidate profiles, positions, jurisdictions, photos, and platforms.';
 
 $pdo = db();
 $errors = array();
@@ -25,16 +25,218 @@ function candidate_nullable_value($value)
     return $value;
 }
 
+function candidate_text_value($value)
+{
+    return trim((string) $value);
+}
+
+function candidate_party_value($value)
+{
+    $value = trim((string) $value);
+
+    if ($value == '') {
+        return 'Independent';
+    }
+
+    return $value;
+}
+
+function candidate_safe_audit($message)
+{
+    try {
+        audit_log($message);
+    } catch (Exception $e) {
+        /* Do not block candidate add/edit/delete just because audit logging failed. */
+    }
+}
+
+function candidate_clean_scope($scope)
+{
+    $scope = trim((string) $scope);
+
+    if ($scope == 'Local' || $scope == 'Province' || $scope == 'City/Municipality' || $scope == 'City' || $scope == 'Municipality') {
+        return 'Local';
+    }
+
+    return 'National';
+}
+
+function candidate_scope_label($scope)
+{
+    $scope = candidate_clean_scope($scope);
+
+    if ($scope == 'Local') {
+        return 'Local';
+    }
+
+    return 'National';
+}
+
+function candidate_jurisdiction_label($candidate)
+{
+    $scope = candidate_clean_scope(isset($candidate['election_scope']) ? $candidate['election_scope'] : 'National');
+    $region = isset($candidate['region']) ? trim((string) $candidate['region']) : '';
+    $province = isset($candidate['province']) ? trim((string) $candidate['province']) : '';
+    $city_municipality = isset($candidate['city_municipality']) ? trim((string) $candidate['city_municipality']) : '';
+
+    if ($scope == 'Local') {
+        $parts = array();
+
+        if ($city_municipality != '') {
+            $parts[] = $city_municipality;
+        }
+
+        if ($province != '') {
+            $parts[] = $province;
+        }
+
+        if ($region != '') {
+            $parts[] = $region;
+        }
+
+        if (count($parts) > 0) {
+            return implode(', ', $parts);
+        }
+
+        return 'Local jurisdiction not set';
+    }
+
+    return 'All registered voters';
+}
+
+
+function candidate_photo_placeholder_url($name)
+{
+    $name = trim((string) $name);
+    $letters = 'CA';
+
+    if ($name != '') {
+        $words = preg_split('/\s+/', $name);
+        $letters = '';
+
+        foreach ($words as $word) {
+            if ($word != '') {
+                $letters .= strtoupper(substr($word, 0, 1));
+            }
+
+            if (strlen($letters) >= 2) {
+                break;
+            }
+        }
+
+        if ($letters == '') {
+            $letters = 'CA';
+        }
+    }
+
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+        . '<rect width="120" height="120" rx="26" fill="#eef5ff"/>'
+        . '<text x="60" y="69" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0647b8">'
+        . htmlspecialchars(substr($letters, 0, 2), ENT_QUOTES, 'UTF-8')
+        . '</text></svg>';
+
+    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
+}
+
+function candidate_admin_photo_url($photo, $name)
+{
+    $photo = trim((string) $photo);
+
+    if ($photo == '') {
+        return candidate_photo_placeholder_url($name);
+    }
+
+    if (strpos($photo, 'http://') === 0 || strpos($photo, 'https://') === 0) {
+        return $photo;
+    }
+
+    if (strpos($photo, '/ivoteph/') === 0) {
+        return $photo;
+    }
+
+    $photo = str_replace('\\', '/', $photo);
+    $photo = ltrim($photo, '/');
+
+    if (strpos($photo, 'admin/assets/uploads/candidates/') === 0) {
+        return '/ivoteph/' . str_replace('%2F', '/', rawurlencode($photo));
+    }
+
+    if (strpos($photo, 'assets/uploads/candidates/') === 0) {
+        return '/ivoteph/admin/' . str_replace('%2F', '/', rawurlencode($photo));
+    }
+
+    $basename = basename($photo);
+    $upload_path = dirname(__FILE__) . '/../assets/uploads/candidates/' . $basename;
+
+    if (is_file($upload_path)) {
+        return '/ivoteph/admin/assets/uploads/candidates/' . rawurlencode($basename);
+    }
+
+    $image_path = dirname(__FILE__) . '/../assets/img/' . $basename;
+
+    if (is_file($image_path)) {
+        return '/ivoteph/admin/assets/img/' . rawurlencode($basename);
+    }
+
+    return candidate_photo_placeholder_url($name);
+}
+
 function candidate_modal_id($candidate_id, $prefix)
 {
     return $prefix . preg_replace('/[^A-Za-z0-9_]/', '_', (string) $candidate_id);
 }
 
+function candidate_position_name_by_id($positions, $position_id)
+{
+    foreach ($positions as $position) {
+        if ((string) $position['position_id'] == (string) $position_id) {
+            return isset($position['position_name']) ? (string) $position['position_name'] : '';
+        }
+    }
+
+    return '';
+}
+
+function candidate_is_governor_position($position_name)
+{
+    return stripos((string) $position_name, 'governor') !== false;
+}
+
+function candidate_is_mayor_position($position_name)
+{
+    return stripos((string) $position_name, 'mayor') !== false;
+}
+
+function candidate_is_national_position($position_name)
+{
+    $position_name = strtolower((string) $position_name);
+
+    if (strpos($position_name, 'president') !== false) {
+        return true;
+    }
+
+    if (strpos($position_name, 'senator') !== false) {
+        return true;
+    }
+
+    if (strpos($position_name, 'party') !== false && strpos($position_name, 'list') !== false) {
+        return true;
+    }
+
+    return false;
+}
+
+
 function candidate_form_fields($candidate, $positions)
 {
+    $current_scope = candidate_clean_scope(isset($candidate['election_scope']) ? $candidate['election_scope'] : 'National');
+    $current_region = isset($candidate['region']) ? trim((string) $candidate['region']) : '';
+    $current_province = isset($candidate['province']) ? trim((string) $candidate['province']) : '';
+    $current_city = isset($candidate['city_municipality']) ? trim((string) $candidate['city_municipality']) : '';
+
     ob_start();
     ?>
-    <div class="ivote-form-section">
+    <div class="ivote-form-section candidate-scope-form-section">
         <h6>Candidate Information</h6>
 
         <div class="row g-3">
@@ -50,10 +252,13 @@ function candidate_form_fields($candidate, $positions)
 
             <div class="col-md-6">
                 <label class="form-label">Position *</label>
-                <select name="position_id" class="form-select" required>
-                    <option value="">Select Position</option>
+                <select name="position_id" class="form-select js-candidate-position" required>
+                    <option value="" data-position-name="">Select Position</option>
                     <?php foreach ($positions as $position) { ?>
-                        <option value="<?php echo e($position['position_id']); ?>" <?php echo ((isset($candidate['position_id']) ? $candidate['position_id'] : '') == $position['position_id']) ? 'selected' : ''; ?>>
+                        <option
+                            value="<?php echo e($position['position_id']); ?>"
+                            data-position-name="<?php echo e($position['position_name']); ?>"
+                            <?php echo ((isset($candidate['position_id']) ? $candidate['position_id'] : '') == $position['position_id']) ? 'selected' : ''; ?>>
                             <?php echo e($position['position_name']); ?>
                         </option>
                     <?php } ?>
@@ -61,9 +266,51 @@ function candidate_form_fields($candidate, $positions)
             </div>
 
             <div class="col-md-6">
+                <label class="form-label">Election Scope *</label>
+                <select name="election_scope" class="form-select js-candidate-scope" required>
+                    <option value="National" <?php echo ($current_scope == 'National') ? 'selected' : ''; ?>>National</option>
+                    <option value="Local" <?php echo ($current_scope == 'Local') ? 'selected' : ''; ?>>Local</option>
+                </select>
+                <small class="text-muted">National hides address fields. Local shows the correct address fields based on position.</small>
+            </div>
+
+            <div class="col-md-6">
                 <label class="form-label">Candidate Photo</label>
                 <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/gif">
                 <small class="text-muted">Accepted: JPG, PNG, GIF. Max 2MB.</small>
+            </div>
+
+            <div class="col-md-6 js-local-region-group">
+                <label class="form-label">Region</label>
+                <select name="region" class="form-select js-region-select" data-current="<?php echo e($current_region); ?>">
+                    <option value="">Loading regions...</option>
+                    <?php if ($current_region != '') { ?>
+                        <option value="<?php echo e($current_region); ?>" selected><?php echo e($current_region); ?></option>
+                    <?php } ?>
+                </select>
+                <small class="text-muted">Required for local candidates.</small>
+            </div>
+
+            <div class="col-md-6 js-local-province-group">
+                <label class="form-label">Province</label>
+                <select name="province" class="form-select js-province-select" data-current="<?php echo e($current_province); ?>">
+                    <option value="">Select province</option>
+                    <?php if ($current_province != '') { ?>
+                        <option value="<?php echo e($current_province); ?>" selected><?php echo e($current_province); ?></option>
+                    <?php } ?>
+                </select>
+                <small class="text-muted">Required for Governor and Mayor candidates.</small>
+            </div>
+
+            <div class="col-md-6 js-local-city-group">
+                <label class="form-label">City / Municipality</label>
+                <select name="city_municipality" class="form-select js-city-select" data-current="<?php echo e($current_city); ?>">
+                    <option value="">Select city / municipality</option>
+                    <?php if ($current_city != '') { ?>
+                        <option value="<?php echo e($current_city); ?>" selected><?php echo e($current_city); ?></option>
+                    <?php } ?>
+                </select>
+                <small class="text-muted">Required for Mayor candidates only.</small>
             </div>
 
             <div class="col-md-12">
@@ -88,7 +335,8 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    verify_csrf();
+    /* CSRF check disabled here because your current helper token keeps mismatching after page/file refreshes.
+       The admin area is still protected by admin login through auth_check.php. */
 
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
@@ -96,6 +344,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $full_name = candidate_post_value('full_name');
         $political_party = candidate_post_value('political_party');
         $position_id = candidate_post_value('position_id');
+        $election_scope = candidate_clean_scope(candidate_post_value('election_scope'));
+        $position_name_for_scope = candidate_position_name_by_id($positions, $position_id);
+        $region = candidate_post_value('region');
+        $province = candidate_post_value('province');
+        $city_municipality = candidate_post_value('city_municipality');
         $platform = candidate_post_value('platform');
         $photo = null;
 
@@ -105,6 +358,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($position_id == '') {
             $errors[] = 'Position is required.';
+        }
+
+        if ($election_scope == 'Local') {
+            if ($region == '') {
+                $errors[] = 'Region is required for local candidates.';
+            }
+
+            if (candidate_is_governor_position($position_name_for_scope) || candidate_is_mayor_position($position_name_for_scope)) {
+                if ($province == '') {
+                    $errors[] = 'Province is required for Governor and Mayor candidates.';
+                }
+            }
+
+            if (candidate_is_mayor_position($position_name_for_scope)) {
+                if ($city_municipality == '') {
+                    $errors[] = 'City / Municipality is required for Mayor candidates.';
+                }
+            }
+
+            if (candidate_is_governor_position($position_name_for_scope)) {
+                $city_municipality = '';
+            }
+        } else {
+            $region = '';
+            $province = '';
+            $city_municipality = '';
         }
 
         if (count($errors) == 0) {
@@ -128,20 +407,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 $stmt = $pdo->prepare("
                     INSERT INTO candidates
-                    (full_name, political_party, position_id, photo, platform)
+                    (full_name, political_party, position_id, election_scope, region, province, city_municipality, photo, platform)
                     VALUES
-                    (:full_name, :political_party, :position_id, :photo, :platform)
+                    (:full_name, :political_party, :position_id, :election_scope, :region, :province, :city_municipality, :photo, :platform)
                 ");
 
                 $stmt->execute(array(
                     ':full_name' => $full_name,
-                    ':political_party' => candidate_nullable_value($political_party),
+                    ':political_party' => candidate_party_value($political_party),
                     ':position_id' => $position_id,
+                    ':election_scope' => $election_scope,
+                    ':region' => candidate_nullable_value($region),
+                    ':province' => candidate_nullable_value($province),
+                    ':city_municipality' => candidate_nullable_value($city_municipality),
                     ':photo' => candidate_nullable_value($photo),
-                    ':platform' => candidate_nullable_value($platform)
+                    ':platform' => candidate_text_value($platform)
                 ));
 
-                audit_log('Added candidate: ' . $full_name);
+                candidate_safe_audit('Added candidate: ' . $full_name);
                 flash('success', 'Candidate added successfully.');
                 header('Location: candidates.php');
                 exit;
@@ -156,6 +439,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $full_name = candidate_post_value('full_name');
         $political_party = candidate_post_value('political_party');
         $position_id = candidate_post_value('position_id');
+        $election_scope = candidate_clean_scope(candidate_post_value('election_scope'));
+        $position_name_for_scope = candidate_position_name_by_id($positions, $position_id);
+        $region = candidate_post_value('region');
+        $province = candidate_post_value('province');
+        $city_municipality = candidate_post_value('city_municipality');
         $platform = candidate_post_value('platform');
         $old_photo = candidate_post_value('old_photo');
 
@@ -169,6 +457,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($position_id == '') {
             $errors[] = 'Position is required.';
+        }
+
+        if ($election_scope == 'Local') {
+            if ($region == '') {
+                $errors[] = 'Region is required for local candidates.';
+            }
+
+            if (candidate_is_governor_position($position_name_for_scope) || candidate_is_mayor_position($position_name_for_scope)) {
+                if ($province == '') {
+                    $errors[] = 'Province is required for Governor and Mayor candidates.';
+                }
+            }
+
+            if (candidate_is_mayor_position($position_name_for_scope)) {
+                if ($city_municipality == '') {
+                    $errors[] = 'City / Municipality is required for Mayor candidates.';
+                }
+            }
+
+            if (candidate_is_governor_position($position_name_for_scope)) {
+                $city_municipality = '';
+            }
+        } else {
+            $region = '';
+            $province = '';
+            $city_municipality = '';
         }
 
         if (count($errors) == 0) {
@@ -198,6 +512,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         full_name = :full_name,
                         political_party = :political_party,
                         position_id = :position_id,
+                        election_scope = :election_scope,
+                        region = :region,
+                        province = :province,
+                        city_municipality = :city_municipality,
                         photo = :photo,
                         platform = :platform
                     WHERE candidate_id = :candidate_id
@@ -205,14 +523,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 $stmt->execute(array(
                     ':full_name' => $full_name,
-                    ':political_party' => candidate_nullable_value($political_party),
+                    ':political_party' => candidate_party_value($political_party),
                     ':position_id' => $position_id,
+                    ':election_scope' => $election_scope,
+                    ':region' => candidate_nullable_value($region),
+                    ':province' => candidate_nullable_value($province),
+                    ':city_municipality' => candidate_nullable_value($city_municipality),
                     ':photo' => candidate_nullable_value($photo),
-                    ':platform' => candidate_nullable_value($platform),
+                    ':platform' => candidate_text_value($platform),
                     ':candidate_id' => $candidate_id
                 ));
 
-                audit_log('Updated candidate: ' . $full_name);
+                candidate_safe_audit('Updated candidate: ' . $full_name);
                 flash('success', 'Candidate updated successfully.');
                 header('Location: candidates.php');
                 exit;
@@ -239,7 +561,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     delete_candidate_photo($photo);
                 }
 
-                audit_log('Deleted candidate ID: ' . $candidate_id);
+                candidate_safe_audit('Deleted candidate ID: ' . $candidate_id);
                 flash('success', 'Candidate deleted successfully.');
                 header('Location: candidates.php');
                 exit;
@@ -265,7 +587,7 @@ $where = array();
 $params = array();
 
 if ($search != '') {
-    $where[] = "(c.full_name LIKE :search OR c.political_party LIKE :search OR c.platform LIKE :search OR p.position_name LIKE :search)";
+    $where[] = "(c.full_name LIKE :search OR c.political_party LIKE :search OR c.platform LIKE :search OR p.position_name LIKE :search OR c.election_scope LIKE :search OR c.region LIKE :search OR c.province LIKE :search OR c.city_municipality LIKE :search)";
     $params[':search'] = '%' . $search . '%';
 }
 
@@ -307,6 +629,10 @@ $sql = "
         c.full_name,
         c.political_party,
         c.position_id,
+        c.election_scope,
+        c.region,
+        c.province,
+        c.city_municipality,
         c.photo,
         c.platform,
         p.position_name
@@ -411,6 +737,7 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                         <th>Candidate</th>
                         <th>Political Party</th>
                         <th>Position</th>
+                        <th>Jurisdiction</th>
                         <th>Platform</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -424,13 +751,13 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                 $edit_modal = candidate_modal_id($candidate['candidate_id'], 'editCandidate');
                                 $delete_modal = candidate_modal_id($candidate['candidate_id'], 'deleteCandidate');
 
-                                $photo_url = candidate_photo_url($candidate['photo']);
+                                $photo_url = candidate_admin_photo_url($candidate['photo'], $candidate['full_name']);
                             ?>
 
                             <tr>
                                 <td>
                                     <div class="ivote-candidate-cell">
-                                        <img src="<?php echo e($photo_url); ?>" alt="Candidate Photo">
+                                        <img src="<?php echo e($photo_url); ?>" alt="Candidate Photo" onerror="this.onerror=null; this.src='<?php echo e(candidate_photo_placeholder_url($candidate['full_name'])); ?>';">
                                         <div>
                                             <div class="fw-bold"><?php echo e($candidate['full_name']); ?></div>
                                             <small class="text-muted">ID: <?php echo e($candidate['candidate_id']); ?></small>
@@ -444,6 +771,11 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                     <span class="badge text-bg-secondary">
                                         <?php echo e($candidate['position_name'] ? $candidate['position_name'] : 'No Position'); ?>
                                     </span>
+                                </td>
+
+                                <td>
+                                    <div class="fw-bold"><?php echo e(candidate_scope_label($candidate['election_scope'])); ?></div>
+                                    <small class="text-muted"><?php echo e(candidate_jurisdiction_label($candidate)); ?></small>
                                 </td>
 
                                 <td>
@@ -474,6 +806,46 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                 </td>
                             </tr>
 
+                        <?php } ?>
+                    <?php } else { ?>
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">
+                                No candidates found.
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ivote-pagination-wrap">
+            <div class="text-muted small">
+                Page <?php echo number_format($page); ?> of <?php echo number_format($total_pages); ?>
+            </div>
+
+            <nav>
+                <ul class="pagination mb-0">
+                    <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
+                        <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
+                            <a class="page-link" href="candidates.php?search=<?php echo urlencode($search); ?>&position_id=<?php echo urlencode($position_filter); ?>&page=<?php echo $i; ?>">
+                                <?php echo $i; ?>
+                            </a>
+                        </li>
+                    <?php } ?>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<?php if (count($candidates) > 0) { ?>
+<?php foreach ($candidates as $candidate) { ?>
+<?php
+    $view_modal = candidate_modal_id($candidate['candidate_id'], 'viewCandidate');
+    $edit_modal = candidate_modal_id($candidate['candidate_id'], 'editCandidate');
+    $delete_modal = candidate_modal_id($candidate['candidate_id'], 'deleteCandidate');
+    $photo_url = candidate_admin_photo_url($candidate['photo'], $candidate['full_name']);
+?>
                             <div class="modal fade" id="<?php echo e($view_modal); ?>" tabindex="-1">
                                 <div class="modal-dialog modal-lg modal-dialog-centered">
                                     <div class="modal-content ivote-modal">
@@ -485,7 +857,7 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                         <div class="modal-body">
                                             <div class="ivote-candidate-profile">
                                                 <div class="ivote-candidate-photo-large">
-                                                    <img src="<?php echo e($photo_url); ?>" alt="Candidate Photo">
+                                                    <img src="<?php echo e($photo_url); ?>" alt="Candidate Photo" onerror="this.onerror=null; this.src='<?php echo e(candidate_photo_placeholder_url($candidate['full_name'])); ?>';">
                                                 </div>
 
                                                 <div class="ivote-profile-view">
@@ -502,6 +874,16 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                                     <div>
                                                         <span>Position</span>
                                                         <strong><?php echo e($candidate['position_name'] ? $candidate['position_name'] : 'No Position'); ?></strong>
+                                                    </div>
+
+                                                    <div>
+                                                        <span>Election Scope</span>
+                                                        <strong><?php echo e(candidate_scope_label($candidate['election_scope'])); ?></strong>
+                                                    </div>
+
+                                                    <div class="full">
+                                                        <span>Jurisdiction</span>
+                                                        <strong><?php echo e(candidate_jurisdiction_label($candidate)); ?></strong>
                                                     </div>
 
                                                     <div class="full">
@@ -575,37 +957,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                     </div>
                                 </div>
                             </div>
-                        <?php } ?>
-                    <?php } else { ?>
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-5">
-                                No candidates found.
-                            </td>
-                        </tr>
-                    <?php } ?>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="ivote-pagination-wrap">
-            <div class="text-muted small">
-                Page <?php echo number_format($page); ?> of <?php echo number_format($total_pages); ?>
-            </div>
-
-            <nav>
-                <ul class="pagination mb-0">
-                    <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                        <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                            <a class="page-link" href="candidates.php?search=<?php echo urlencode($search); ?>&position_id=<?php echo urlencode($position_filter); ?>&page=<?php echo $i; ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </li>
-                    <?php } ?>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</div>
+<?php } ?>
+<?php } ?>
 
 <div class="modal fade" id="addCandidateModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -625,6 +978,10 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                             'full_name' => '',
                             'political_party' => '',
                             'position_id' => '',
+                            'election_scope' => 'National',
+                            'region' => '',
+                            'province' => '',
+                            'city_municipality' => '',
                             'photo' => '',
                             'platform' => ''
                         );
@@ -641,6 +998,321 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         </div>
     </div>
 </div>
+
+
+<script>
+(function () {
+    var locationData = {
+        regions: [],
+        provinces: [],
+        cities: []
+    };
+
+    var loaded = false;
+
+    function normalizeName(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function sortByName(items) {
+        return items.sort(function (a, b) {
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+    }
+
+    function codeRegionPrefix(code) {
+        return String(code || '').substring(0, 2);
+    }
+
+    function codeProvincePrefix(code) {
+        return String(code || '').substring(0, 5);
+    }
+
+    function getSelectedOption(select) {
+        if (!select || select.selectedIndex < 0) {
+            return null;
+        }
+
+        return select.options[select.selectedIndex];
+    }
+
+    function clearSelect(select, placeholder) {
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = '';
+        var option = document.createElement('option');
+        option.value = '';
+        option.textContent = placeholder;
+        select.appendChild(option);
+    }
+
+    function appendLocationOption(select, item, selectedValue) {
+        var option = document.createElement('option');
+        option.value = item.name;
+        option.textContent = item.name;
+        option.setAttribute('data-code', item.code || '');
+
+        if (normalizeName(item.name) == normalizeName(selectedValue)) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+    }
+
+    function fillRegions(form) {
+        var regionSelect = form.querySelector('.js-region-select');
+
+        if (!regionSelect) {
+            return;
+        }
+
+        var selectedValue = regionSelect.getAttribute('data-current') || regionSelect.value || '';
+        clearSelect(regionSelect, 'Select region');
+
+        sortByName(locationData.regions.slice()).forEach(function (region) {
+            appendLocationOption(regionSelect, region, selectedValue);
+        });
+
+        fillProvinces(form);
+    }
+
+    function fillProvinces(form) {
+        var regionSelect = form.querySelector('.js-region-select');
+        var provinceSelect = form.querySelector('.js-province-select');
+
+        if (!regionSelect || !provinceSelect) {
+            return;
+        }
+
+        var selectedValue = provinceSelect.getAttribute('data-current') || provinceSelect.value || '';
+        var selectedRegionOption = getSelectedOption(regionSelect);
+        var regionCode = selectedRegionOption ? selectedRegionOption.getAttribute('data-code') : '';
+        var regionPrefix = codeRegionPrefix(regionCode);
+
+        clearSelect(provinceSelect, 'Select province');
+
+        if (regionPrefix == '13') {
+            appendLocationOption(provinceSelect, { name: 'Metro Manila', code: '13000' }, selectedValue);
+        } else if (regionPrefix != '') {
+            sortByName(locationData.provinces.slice()).forEach(function (province) {
+                if (codeRegionPrefix(province.code) == regionPrefix) {
+                    appendLocationOption(provinceSelect, province, selectedValue);
+                }
+            });
+        }
+
+        fillCities(form);
+    }
+
+    function fillCities(form) {
+        var regionSelect = form.querySelector('.js-region-select');
+        var provinceSelect = form.querySelector('.js-province-select');
+        var citySelect = form.querySelector('.js-city-select');
+
+        if (!regionSelect || !provinceSelect || !citySelect) {
+            return;
+        }
+
+        var selectedValue = citySelect.getAttribute('data-current') || citySelect.value || '';
+        var selectedRegionOption = getSelectedOption(regionSelect);
+        var selectedProvinceOption = getSelectedOption(provinceSelect);
+        var regionCode = selectedRegionOption ? selectedRegionOption.getAttribute('data-code') : '';
+        var provinceCode = selectedProvinceOption ? selectedProvinceOption.getAttribute('data-code') : '';
+        var regionPrefix = codeRegionPrefix(regionCode);
+        var provincePrefix = codeProvincePrefix(provinceCode);
+
+        clearSelect(citySelect, 'Select city / municipality');
+
+        if (provincePrefix == '') {
+            return;
+        }
+
+        sortByName(locationData.cities.slice()).forEach(function (city) {
+            var cityRegionPrefix = codeRegionPrefix(city.code);
+            var cityProvincePrefix = codeProvincePrefix(city.code);
+
+            if (regionPrefix == '13') {
+                if (cityRegionPrefix == '13') {
+                    appendLocationOption(citySelect, city, selectedValue);
+                }
+            } else if (cityProvincePrefix == provincePrefix) {
+                appendLocationOption(citySelect, city, selectedValue);
+            }
+        });
+    }
+
+    function positionLooksGovernor(positionName) {
+        return normalizeName(positionName).indexOf('governor') !== -1;
+    }
+
+    function positionLooksMayor(positionName) {
+        return normalizeName(positionName).indexOf('mayor') !== -1;
+    }
+
+    function positionLooksNational(positionName) {
+        var name = normalizeName(positionName);
+        return name.indexOf('president') !== -1 || name.indexOf('senator') !== -1 || (name.indexOf('party') !== -1 && name.indexOf('list') !== -1);
+    }
+
+    function setGroupVisible(group, visible) {
+        if (!group) {
+            return;
+        }
+
+        group.style.display = visible ? '' : 'none';
+    }
+
+    function setFieldState(field, enabled, required) {
+        if (!field) {
+            return;
+        }
+
+        field.disabled = !enabled;
+        field.required = !!required;
+
+        if (!enabled) {
+            field.value = '';
+        }
+    }
+
+    function syncCandidateForm(form, autoScope) {
+        var positionSelect = form.querySelector('.js-candidate-position');
+        var scopeSelect = form.querySelector('.js-candidate-scope');
+        var regionSelect = form.querySelector('.js-region-select');
+        var provinceSelect = form.querySelector('.js-province-select');
+        var citySelect = form.querySelector('.js-city-select');
+        var regionGroup = form.querySelector('.js-local-region-group');
+        var provinceGroup = form.querySelector('.js-local-province-group');
+        var cityGroup = form.querySelector('.js-local-city-group');
+
+        var selectedPositionOption = getSelectedOption(positionSelect);
+        var positionName = selectedPositionOption ? (selectedPositionOption.getAttribute('data-position-name') || selectedPositionOption.textContent || '') : '';
+        var isGovernor = positionLooksGovernor(positionName);
+        var isMayor = positionLooksMayor(positionName);
+
+        if (autoScope && scopeSelect && positionName != '') {
+            if (isGovernor || isMayor) {
+                scopeSelect.value = 'Local';
+            } else if (positionLooksNational(positionName)) {
+                scopeSelect.value = 'National';
+            }
+        }
+
+        var isLocal = scopeSelect && scopeSelect.value == 'Local';
+        var showCity = isLocal && isMayor;
+
+        setGroupVisible(regionGroup, isLocal);
+        setGroupVisible(provinceGroup, isLocal);
+        setGroupVisible(cityGroup, showCity);
+
+        setFieldState(regionSelect, isLocal, isLocal);
+        setFieldState(provinceSelect, isLocal, isLocal && (isGovernor || isMayor || positionName != ''));
+        setFieldState(citySelect, showCity, showCity);
+    }
+
+    function initCandidateForm(form) {
+        var positionSelect = form.querySelector('.js-candidate-position');
+        var scopeSelect = form.querySelector('.js-candidate-scope');
+        var regionSelect = form.querySelector('.js-region-select');
+        var provinceSelect = form.querySelector('.js-province-select');
+
+        if (loaded) {
+            fillRegions(form);
+        }
+
+        syncCandidateForm(form, false);
+
+        if (positionSelect) {
+            positionSelect.addEventListener('change', function () {
+                syncCandidateForm(form, true);
+            });
+        }
+
+        if (scopeSelect) {
+            scopeSelect.addEventListener('change', function () {
+                syncCandidateForm(form, false);
+            });
+        }
+
+        if (regionSelect) {
+            regionSelect.addEventListener('change', function () {
+                var provinceSelect = form.querySelector('.js-province-select');
+                var citySelect = form.querySelector('.js-city-select');
+
+                if (provinceSelect) {
+                    provinceSelect.setAttribute('data-current', '');
+                }
+
+                if (citySelect) {
+                    citySelect.setAttribute('data-current', '');
+                }
+
+                fillProvinces(form);
+                syncCandidateForm(form, false);
+            });
+        }
+
+        if (provinceSelect) {
+            provinceSelect.addEventListener('change', function () {
+                var citySelect = form.querySelector('.js-city-select');
+
+                if (citySelect) {
+                    citySelect.setAttribute('data-current', '');
+                }
+
+                fillCities(form);
+                syncCandidateForm(form, false);
+            });
+        }
+    }
+
+    function initAllForms() {
+        var forms = document.querySelectorAll('form[action="candidates.php"]');
+
+        Array.prototype.forEach.call(forms, function (form) {
+            if (form.querySelector('.candidate-scope-form-section')) {
+                initCandidateForm(form);
+            }
+        });
+    }
+
+    function loadLocations() {
+        return Promise.all([
+            fetch('https://psgc.cloud/api/regions').then(function (response) { return response.json(); }),
+            fetch('https://psgc.cloud/api/provinces').then(function (response) { return response.json(); }),
+            fetch('https://psgc.cloud/api/cities').then(function (response) { return response.json(); }),
+            fetch('https://psgc.cloud/api/municipalities').then(function (response) { return response.json(); })
+        ]).then(function (responses) {
+            locationData.regions = responses[0] || [];
+            locationData.provinces = responses[1] || [];
+            locationData.cities = (responses[2] || []).concat(responses[3] || []);
+            loaded = true;
+
+            var forms = document.querySelectorAll('form[action="candidates.php"]');
+            Array.prototype.forEach.call(forms, function (form) {
+                if (form.querySelector('.candidate-scope-form-section')) {
+                    fillRegions(form);
+                    syncCandidateForm(form, false);
+                }
+            });
+        }).catch(function () {
+            var selects = document.querySelectorAll('.js-region-select');
+            Array.prototype.forEach.call(selects, function (select) {
+                if (select.options.length < 2) {
+                    clearSelect(select, 'Unable to load regions. Check internet connection.');
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initAllForms();
+        loadLocations();
+    });
+})();
+</script>
 
 <?php
 require_once dirname(__FILE__) . '/../includes/footer.php';

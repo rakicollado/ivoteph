@@ -1,43 +1,65 @@
 <?php
 if (session_id() == '') {
-  session_start();
+    session_start();
 }
 
-if (isset($_SESSION['voter_id']) && $_SESSION['voter_id'] != '') {
-  header('Location: index.php');
-  exit();
+/*
+    If a voter opens login.php while already logged in,
+    clear the session first so the login page opens again.
+*/
+
+if (isset($_SESSION['voter_id'])) {
+    $_SESSION = array();
+
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params["path"],
+            $params["domain"],
+            $params["secure"],
+            $params["httponly"]
+        );
+    }
+
+    session_destroy();
+
+    header('Location: login.php?success=logout');
+    exit();
 }
 
 $error_message = '';
-
-if (isset($_GET['error'])) {
-  if ($_GET['error'] == 'empty') {
-    $error_message = 'Please enter your Voter ID and password.';
-  } elseif ($_GET['error'] == 'invalid') {
-    $error_message = 'Invalid Voter ID or password.';
-  } elseif ($_GET['error'] == 'inactive') {
-    $error_message = 'Your account is inactive. Please contact the election administrator.';
-  } elseif ($_GET['error'] == 'not_verified') {
-    $error_message = 'Your voter account is not yet verified.';
-  } elseif ($_GET['error'] == 'not_registered') {
-    $error_message = 'Your voter registration is not yet complete.';
-  } elseif ($_GET['error'] == 'login_required') {
-    $error_message = 'Please log in first before accessing the voter dashboard.';
-  } elseif ($_GET['error'] == 'account_not_found') {
-    $error_message = 'Account not found. Please log in again.';
-  } elseif ($_GET['error'] == 'server_error') {
-    $error_message = 'A server error occurred. Please try again.';
-  }
-}
-
 $success_message = '';
 
+if (isset($_GET['error'])) {
+    if ($_GET['error'] == 'empty') {
+        $error_message = 'Please enter your Voter ID and password.';
+    } elseif ($_GET['error'] == 'invalid') {
+        $error_message = 'Invalid Voter ID or password.';
+    } elseif ($_GET['error'] == 'inactive') {
+        $error_message = 'Your account is inactive. Please contact the administrator.';
+    } elseif ($_GET['error'] == 'not_registered') {
+        $error_message = 'Your voter profile is not yet complete or registered.';
+    } elseif ($_GET['error'] == 'login_required') {
+        $error_message = 'Please log in first to access your account.';
+    } elseif ($_GET['error'] == 'session_expired') {
+        $error_message = 'Your session expired. Please log in again.';
+    } elseif ($_GET['error'] == 'server_error') {
+        $error_message = 'A server error occurred. Please try again.';
+    } else {
+        $error_message = 'Login failed. Please try again.';
+    }
+}
+
 if (isset($_GET['success'])) {
-  if ($_GET['success'] == 'registered') {
-    $success_message = 'Registration successful. You may now log in.';
-  } elseif ($_GET['success'] == 'logout') {
-    $success_message = 'You have successfully logged out.';
-  }
+    if ($_GET['success'] == 'logout') {
+        $success_message = 'You have been logged out successfully.';
+    } elseif ($_GET['success'] == 'registered') {
+        $success_message = 'Registration successful. You may now log in.';
+    }
 }
 ?>
 <!doctype html>
@@ -139,30 +161,42 @@ if (isset($_GET['success'])) {
       <?php if ($error_message != '') { ?>
         <div class="alert alert-danger loginAlert">
           <i class="fa-solid fa-circle-exclamation me-2"></i>
-          <?php echo htmlspecialchars($error_message); ?>
+          <?php echo htmlspecialchars($error_message, ENT_QUOTES, 'UTF-8'); ?>
         </div>
       <?php } ?>
 
       <?php if ($success_message != '') { ?>
         <div class="alert alert-success loginAlert">
           <i class="fa-solid fa-circle-check me-2"></i>
-          <?php echo htmlspecialchars($success_message); ?>
+          <?php echo htmlspecialchars($success_message, ENT_QUOTES, 'UTF-8'); ?>
         </div>
       <?php } ?>
 
       <form id="loginForm" action="login_process.php" method="POST">
         <div class="formGroup">
           <label for="voter_id" class="formLabel">Voter ID</label>
-          <input id="voter_id" name="voter_id" type="text" class="formInput" placeholder="Enter your Voter ID"
-            autocomplete="username" required>
+          <input
+            id="voter_id"
+            name="voter_id"
+            type="text"
+            class="formInput"
+            placeholder="Enter your Voter ID"
+            autocomplete="username"
+            required>
         </div>
 
         <div class="formGroup">
           <label for="password" class="formLabel">Password</label>
 
           <div class="passwordWrapper">
-            <input id="password" name="password" type="password" class="formInput" placeholder="Enter your password"
-              autocomplete="current-password" required>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              class="formInput"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required>
 
             <button type="button" class="passwordToggleBtn" id="togglePassword" aria-label="Show password">
               <i class="fa-solid fa-eye"></i>

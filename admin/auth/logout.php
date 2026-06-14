@@ -5,6 +5,10 @@ if (session_id() == '') {
     session_start();
 }
 
+if (isset($_SESSION['admin_name'])) {
+    log_admin_action($_SESSION['admin_name'], 'Logout');
+}
+
 $_SESSION = array();
 
 if (ini_get('session.use_cookies')) {
@@ -23,6 +27,6 @@ if (ini_get('session.use_cookies')) {
 
 session_destroy();
 
-header('Location: ../auth/login.php');
-exit;
+header('Location: /ivoteph/admin/auth/login.php?success=logout');
+exit();
 ?>

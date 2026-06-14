@@ -1,12 +1,12 @@
 <?php
-require_once dirname(__FILE__) . '/../helpers/functions.php';
+require_once dirname(__FILE__) . '/../auth_check.php';
 
 require_admin();
 
 date_default_timezone_set('Asia/Manila');
 
 $page_title = 'Election Schedule Control';
-$page_subtitle = 'Set the official voting start and end time using Philippine Standard Time.';
+$page_subtitle = 'Set the voting window. Voting opens and closes automatically based on the saved date and time.';
 
 $pdo = db();
 $errors = array();
@@ -231,6 +231,16 @@ function election_badge_class_custom($status)
     return 'text-bg-secondary';
 }
 
+
+function election_safe_audit($action)
+{
+    try {
+        audit_log($action);
+    } catch (Exception $e) {
+        /* Audit logging should not block election schedule updates. */
+    }
+}
+
 function election_create_default_if_empty($pdo, $columns, $title_col, $start_col, $end_col, $status_col, $status_lowercase)
 {
     try {
@@ -402,8 +412,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && count($errors) == 0) {
         $election_title = election_post_value('election_title');
         $start_datetime = election_db_datetime(election_post_value('start_datetime'));
         $end_datetime = election_db_datetime(election_post_value('end_datetime'));
-        $access_mode = election_post_value('access_mode');
-
         if ($election_title == '') {
             $errors[] = 'Election title is required.';
         }
@@ -422,25 +430,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && count($errors) == 0) {
             }
         }
 
-        if ($access_mode != 'Draft' && $access_mode != 'Open' && $access_mode != 'Closed') {
-            $access_mode = 'Draft';
-        }
-
         if (count($errors) == 0) {
             try {
                 $now = time();
-                $start_time = strtotime($start_datetime);
                 $end_time = strtotime($end_datetime);
-                $final_status = $access_mode;
 
-                if ($access_mode == 'Draft') {
-                    if ($now >= $start_time && $now <= $end_time) {
-                        $final_status = 'Open';
-                    } else if ($now > $end_time) {
-                        $final_status = 'Closed';
-                    } else {
-                        $final_status = 'Draft';
-                    }
+                /*
+                    Saving a schedule means the election is schedule-controlled.
+                    Stored status stays Open so the user side can find the election,
+                    while the start/end datetime decide whether voting is currently
+                    Scheduled, Open, or Closed.
+                */
+                $final_status = 'Open';
+
+                if ($end_time !== false && $now > $end_time) {
+                    $final_status = 'Closed';
                 }
 
                 $stmt = $pdo->prepare("
@@ -461,8 +465,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && count($errors) == 0) {
                     ':election_id' => $election_id
                 ));
 
-                audit_log('Updated official election schedule.');
-                flash('success', 'Election schedule saved. Voting will automatically open and close based on the PH schedule.');
+                election_safe_audit('Updated official election schedule.');
+                flash('success', 'Election schedule saved. Voting will automatically open at the start time and close at the end time.');
                 header('Location: elections.php');
                 exit;
             } catch (Exception $e) {
@@ -508,7 +512,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && count($errors) == 0) {
                     ':election_id' => $election_id
                 ));
 
-                audit_log('Opened official voting schedule.');
+                election_safe_audit('Opened official voting schedule.');
                 flash('success', 'Voting has been opened now.');
                 header('Location: elections.php');
                 exit;
@@ -537,36 +541,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && count($errors) == 0) {
                     ':election_id' => $election_id
                 ));
 
-                audit_log('Closed official voting schedule.');
+                election_safe_audit('Closed official voting schedule.');
                 flash('success', 'Voting has been closed now.');
                 header('Location: elections.php');
                 exit;
             } catch (Exception $e) {
                 $errors[] = 'Unable to close voting.';
-            }
-        }
-    }
-
-    if ($action == 'schedule_auto') {
-        if (count($errors) == 0) {
-            try {
-                $stmt = $pdo->prepare("
-                    UPDATE elections
-                    SET " . election_quote_col($status_col) . " = :status
-                    WHERE election_id = :election_id
-                ");
-
-                $stmt->execute(array(
-                    ':status' => election_db_status('Draft', $status_lowercase),
-                    ':election_id' => $election_id
-                ));
-
-                audit_log('Set official voting schedule to automatic schedule mode.');
-                flash('success', 'Voting is now scheduled. It will open automatically at the start time.');
-                header('Location: elections.php');
-                exit;
-            } catch (Exception $e) {
-                $errors[] = 'Unable to set voting schedule.';
             }
         }
     }
@@ -590,6 +570,123 @@ $flashes = consume_flash();
 require_once dirname(__FILE__) . '/../includes/header.php';
 require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
+
+<style>
+    /* Layout fix for the election schedule editor after removing access-mode controls. */
+    .ivote-election-page .ivote-election-editor-card {
+        overflow: hidden;
+    }
+
+    .ivote-election-page .ivote-election-editor-form {
+        padding: 0;
+    }
+
+    .ivote-election-page .ivote-election-editor-form .row {
+        padding: 26px;
+    }
+
+    .ivote-election-page .ivote-election-card-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 26px;
+        border-bottom: 1px solid #e6edf7;
+    }
+
+    .ivote-election-page .ivote-election-card-title span {
+        display: block;
+        color: #0646a8;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+
+    .ivote-election-page .ivote-election-card-title h3 {
+        margin: 0;
+        color: #111827;
+        font-size: 25px;
+        font-weight: 950;
+        letter-spacing: -0.03em;
+    }
+
+    .ivote-election-page .ivote-election-card-pill {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: #f1f5fb;
+        color: #475467;
+        font-size: 13px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .ivote-election-page .ivote-election-editor-card .form-label {
+        color: #111827;
+        font-weight: 900;
+    }
+
+    .ivote-election-page .ivote-election-editor-card .form-control {
+        min-height: 54px;
+        border-radius: 16px;
+        border-color: #d9e3f2;
+        box-shadow: none;
+    }
+
+    .ivote-election-page .ivote-election-actions-row-final {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 16px !important;
+        align-items: stretch !important;
+        padding: 24px 26px !important;
+        background: #f8fafc !important;
+        border-top: 1px solid #e6edf7 !important;
+    }
+
+    .ivote-election-page .ivote-election-action-divider-final {
+        display: none !important;
+    }
+
+    .ivote-election-page .ivote-election-action-form {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+
+    .ivote-election-page .ivote-election-action-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 56px !important;
+        margin: 0 !important;
+        border-radius: 16px !important;
+        font-size: 15px !important;
+        font-weight: 950 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        white-space: nowrap !important;
+        box-shadow: 0 10px 22px rgba(16, 24, 40, 0.08) !important;
+    }
+
+    @media (max-width: 992px) {
+        .ivote-election-page .ivote-election-card-title {
+            flex-direction: column;
+        }
+
+        .ivote-election-page .ivote-election-actions-row-final {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+
 
 <div class="ivote-management-page ivote-election-page">
 
@@ -654,13 +751,10 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
                 <div class="ivote-election-info-card">
                     <span>Live Timer</span>
-                    <strong
-                        id="ivoteElectionTimer"
-                        class="ivote-election-timer"
+                    <strong id="ivoteElectionTimer" class="ivote-election-timer"
                         data-status="<?php echo e(election_ui_status($election['election_status'])); ?>"
                         data-start="<?php echo e(election_js_datetime($election['start_datetime'])); ?>"
-                        data-end="<?php echo e(election_js_datetime($election['end_datetime'])); ?>"
-                    >
+                        data-end="<?php echo e(election_js_datetime($election['end_datetime'])); ?>">
                         Loading...
                     </strong>
                     <small id="ivoteTimerCaption">Real-time schedule monitor</small>
@@ -687,279 +781,245 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     <div class="row g-3">
                         <div class="col-md-12">
                             <label class="form-label">Election Title</label>
-                            <input
-                                type="text"
-                                name="election_title"
-                                class="form-control"
-                                value="<?php echo e($election['election_title']); ?>"
-                                required
-                            >
+                            <input type="text" name="election_title" class="form-control"
+                                value="<?php echo e($election['election_title']); ?>" required>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label">Voting Start</label>
-                            <input
-                                type="datetime-local"
-                                name="start_datetime"
-                                class="form-control"
-                                value="<?php echo e(election_datetime_input($election['start_datetime'])); ?>"
-                                required
-                            >
+                            <input type="datetime-local" name="start_datetime" class="form-control"
+                                value="<?php echo e(election_datetime_input($election['start_datetime'])); ?>" required>
                             <small class="text-muted">Example: June 11, 2026 01:00 AM</small>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label">Voting End</label>
-                            <input
-                                type="datetime-local"
-                                name="end_datetime"
-                                class="form-control"
-                                value="<?php echo e(election_datetime_input($election['end_datetime'])); ?>"
-                                required
-                            >
+                            <input type="datetime-local" name="end_datetime" class="form-control"
+                                value="<?php echo e(election_datetime_input($election['end_datetime'])); ?>" required>
                             <small class="text-muted">Example: June 11, 2026 03:00 AM</small>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label">Voting Access Mode</label>
-                            <select name="access_mode" class="form-select" required>
-                                <option value="Draft" <?php echo (election_ui_status($election['election_status']) == 'Draft') ? 'selected' : ''; ?>>
-                                    Scheduled Auto-Open
-                                </option>
-                                <option value="Open" <?php echo (election_ui_status($election['election_status']) == 'Open') ? 'selected' : ''; ?>>
-                                    Force Open Now
-                                </option>
-                                <option value="Closed" <?php echo (election_ui_status($election['election_status']) == 'Closed') ? 'selected' : ''; ?>>
-                                    Force Closed
-                                </option>
-                            </select>
-                            <small class="text-muted">
-                                Scheduled Auto-Open opens at the start time and closes at the end time.
-                            </small>
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0 rounded-4">
+                                <i class="bi bi-info-circle me-1"></i>
+                                After saving, voting follows this schedule automatically. If the start time is in the
+                                future, the election is shown as Scheduled. It opens when the start time arrives and closes
+                                when the end time passes.
+                            </div>
                         </div>
                     </div>
                 </form>
 
                 <div class="ivote-election-actions-row-final">
-    <button type="submit" form="officialElectionForm" class="btn btn-ivote ivote-election-action-btn">
-        <i class="bi bi-save me-1"></i>
-        Save Schedule
-    </button>
+                    <button type="submit" form="officialElectionForm" class="btn btn-ivote ivote-election-action-btn">
+                        <i class="bi bi-save me-1"></i>
+                        Save Schedule
+                    </button>
 
-    <form method="POST" action="elections.php" class="ivote-election-action-form">
-        <?php echo csrf_field(); ?>
-        <input type="hidden" name="action" value="schedule_auto">
-        <input type="hidden" name="election_id" value="<?php echo e($election['election_id']); ?>">
-        <button type="submit" class="btn btn-primary ivote-election-action-btn">
-            <i class="bi bi-clock-history me-1"></i>
-            Use Auto Schedule
-        </button>
-    </form>
+                    <div class="ivote-election-action-divider-final"></div>
 
-    <div class="ivote-election-action-divider-final"></div>
+                    <form method="POST" action="elections.php" class="ivote-election-action-form">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="open_now">
+                        <input type="hidden" name="election_id" value="<?php echo e($election['election_id']); ?>">
+                        <button type="submit" class="btn btn-success ivote-election-action-btn">
+                            <i class="bi bi-unlock me-1"></i>
+                            Open Voting Now
+                        </button>
+                    </form>
 
-    <form method="POST" action="elections.php" class="ivote-election-action-form">
-        <?php echo csrf_field(); ?>
-        <input type="hidden" name="action" value="open_now">
-        <input type="hidden" name="election_id" value="<?php echo e($election['election_id']); ?>">
-        <button type="submit" class="btn btn-success ivote-election-action-btn">
-            <i class="bi bi-unlock me-1"></i>
-            Open Voting Now
-        </button>
-    </form>
+                    <form method="POST" action="elections.php" class="ivote-election-action-form">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="close_now">
+                        <input type="hidden" name="election_id" value="<?php echo e($election['election_id']); ?>">
+                        <button type="submit" class="btn btn-danger ivote-election-action-btn">
+                            <i class="bi bi-lock me-1"></i>
+                            Close Voting Now
+                        </button>
+                    </form>
+                </div>
 
-    <form method="POST" action="elections.php" class="ivote-election-action-form">
-        <?php echo csrf_field(); ?>
-        <input type="hidden" name="action" value="close_now">
-        <input type="hidden" name="election_id" value="<?php echo e($election['election_id']); ?>">
-        <button type="submit" class="btn btn-danger ivote-election-action-btn">
-            <i class="bi bi-lock me-1"></i>
-            Close Voting Now
-        </button>
-    </form>
-</div>
+            <?php } else { ?>
 
-    <?php } else { ?>
+                <div class="alert alert-danger">
+                    Election schedule could not be loaded.
+                </div>
 
-        <div class="alert alert-danger">
-            Election schedule could not be loaded.
+            <?php } ?>
+
         </div>
 
-    <?php } ?>
+        <script>
+            function ivotePadNumber(number) {
+                number = parseInt(number, 10);
 
-</div>
-
-<script>
-function ivotePadNumber(number) {
-    number = parseInt(number, 10);
-
-    if (number < 10) {
-        return '0' + number;
-    }
-
-    return '' + number;
-}
-
-function ivoteFormatDuration(seconds) {
-    seconds = Math.max(0, parseInt(seconds, 10));
-
-    var days = Math.floor(seconds / 86400);
-    var hours = Math.floor((seconds % 86400) / 3600);
-    var minutes = Math.floor((seconds % 3600) / 60);
-    var secs = seconds % 60;
-
-    if (days > 0) {
-        return days + 'd ' + ivotePadNumber(hours) + 'h ' + ivotePadNumber(minutes) + 'm ' + ivotePadNumber(secs) + 's';
-    }
-
-    return ivotePadNumber(hours) + 'h ' + ivotePadNumber(minutes) + 'm ' + ivotePadNumber(secs) + 's';
-}
-
-function ivoteFormatPHClock(dateObj) {
-    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    var month = months[dateObj.getMonth()];
-    var day = ivotePadNumber(dateObj.getDate());
-    var year = dateObj.getFullYear();
-
-    var hour = dateObj.getHours();
-    var minute = ivotePadNumber(dateObj.getMinutes());
-    var second = ivotePadNumber(dateObj.getSeconds());
-    var ampm = hour >= 12 ? 'PM' : 'AM';
-
-    hour = hour % 12;
-
-    if (hour == 0) {
-        hour = 12;
-    }
-
-    return month + ' ' + day + ', ' + year + ' ' + ivotePadNumber(hour) + ':' + minute + ':' + second + ' ' + ampm;
-}
-
-function ivoteSetBadge(status) {
-    var badge = document.getElementById('ivoteRuntimeBadge');
-
-    if (!badge) {
-        return;
-    }
-
-    badge.className = 'badge';
-
-    if (status == 'Open') {
-        badge.className += ' text-bg-success';
-    } else if (status == 'Scheduled') {
-        badge.className += ' text-bg-primary';
-    } else if (status == 'Closed') {
-        badge.className += ' text-bg-danger';
-    } else {
-        badge.className += ' text-bg-secondary';
-    }
-
-    badge.innerHTML = status;
-}
-
-function ivoteUpdateElectionTimers() {
-    var serverNow = new Date(window.ivoteServerNowText).getTime();
-    var offset = serverNow - window.ivotePageLoadedAt;
-    var now = new Date(new Date().getTime() + offset);
-    var nowMs = now.getTime();
-
-    var clock = document.getElementById('ivotePHClock');
-
-    if (clock) {
-        clock.innerHTML = ivoteFormatPHClock(now);
-    }
-
-    var timer = document.getElementById('ivoteElectionTimer');
-    var caption = document.getElementById('ivoteTimerCaption');
-
-    if (!timer) {
-        return;
-    }
-
-    var status = timer.getAttribute('data-status');
-    var startText = timer.getAttribute('data-start');
-    var endText = timer.getAttribute('data-end');
-
-    if (!startText || !endText) {
-        timer.innerHTML = 'No schedule set';
-        ivoteSetBadge('Closed');
-        return;
-    }
-
-    var startMs = new Date(startText).getTime();
-    var endMs = new Date(endText).getTime();
-
-    if (status == 'Closed') {
-        timer.innerHTML = 'Voting is closed';
-        ivoteSetBadge('Closed');
-
-        if (caption) {
-            caption.innerHTML = 'Voting access is disabled.';
-        }
-    } else if (nowMs < startMs) {
-        timer.innerHTML = 'Starts in ' + ivoteFormatDuration((startMs - nowMs) / 1000);
-        ivoteSetBadge('Scheduled');
-
-        if (caption) {
-            caption.innerHTML = 'Voting will open automatically.';
-        }
-    } else if (nowMs >= startMs && nowMs <= endMs) {
-        timer.innerHTML = 'Ends in ' + ivoteFormatDuration((endMs - nowMs) / 1000);
-        ivoteSetBadge('Open');
-
-        if (caption) {
-            caption.innerHTML = 'Voting is currently open.';
-        }
-    } else {
-        timer.innerHTML = 'Voting schedule ended';
-        ivoteSetBadge('Closed');
-
-        if (caption) {
-            caption.innerHTML = 'Voting was automatically closed.';
-        }
-    }
-}
-
-function ivoteSyncElectionStatus() {
-    var xhr = new XMLHttpRequest();
-
-    xhr.open('GET', 'elections.php?ajax=status&_=' + new Date().getTime(), true);
-
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            try {
-                var data = JSON.parse(xhr.responseText);
-
-                window.ivoteServerNowText = data.server_time;
-                window.ivotePageLoadedAt = new Date().getTime();
-
-                var timer = document.getElementById('ivoteElectionTimer');
-
-                if (timer) {
-                    timer.setAttribute('data-status', data.stored_status);
-                    timer.setAttribute('data-start', data.start_datetime);
-                    timer.setAttribute('data-end', data.end_datetime);
+                if (number < 10) {
+                    return '0' + number;
                 }
 
-                ivoteSetBadge(data.runtime_status);
-                ivoteUpdateElectionTimers();
-            } catch (e) {
+                return '' + number;
             }
-        }
-    };
 
-    xhr.send();
-}
+            function ivoteFormatDuration(seconds) {
+                seconds = Math.max(0, parseInt(seconds, 10));
 
-window.ivoteServerNowText = '<?php echo date('Y-m-d\TH:i:s'); ?>+08:00';
-window.ivotePageLoadedAt = new Date().getTime();
+                var days = Math.floor(seconds / 86400);
+                var hours = Math.floor((seconds % 86400) / 3600);
+                var minutes = Math.floor((seconds % 3600) / 60);
+                var secs = seconds % 60;
 
-ivoteUpdateElectionTimers();
-setInterval(ivoteUpdateElectionTimers, 1000);
-setInterval(ivoteSyncElectionStatus, 5000);
-</script>
+                if (days > 0) {
+                    return days + 'd ' + ivotePadNumber(hours) + 'h ' + ivotePadNumber(minutes) + 'm ' + ivotePadNumber(secs) + 's';
+                }
 
-<?php
-require_once dirname(__FILE__) . '/../includes/footer.php';
-?>
+                return ivotePadNumber(hours) + 'h ' + ivotePadNumber(minutes) + 'm ' + ivotePadNumber(secs) + 's';
+            }
+
+            function ivoteFormatPHClock(dateObj) {
+                var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                var month = months[dateObj.getMonth()];
+                var day = ivotePadNumber(dateObj.getDate());
+                var year = dateObj.getFullYear();
+
+                var hour = dateObj.getHours();
+                var minute = ivotePadNumber(dateObj.getMinutes());
+                var second = ivotePadNumber(dateObj.getSeconds());
+                var ampm = hour >= 12 ? 'PM' : 'AM';
+
+                hour = hour % 12;
+
+                if (hour == 0) {
+                    hour = 12;
+                }
+
+                return month + ' ' + day + ', ' + year + ' ' + ivotePadNumber(hour) + ':' + minute + ':' + second + ' ' + ampm;
+            }
+
+            function ivoteSetBadge(status) {
+                var badge = document.getElementById('ivoteRuntimeBadge');
+
+                if (!badge) {
+                    return;
+                }
+
+                badge.className = 'badge';
+
+                if (status == 'Open') {
+                    badge.className += ' text-bg-success';
+                } else if (status == 'Scheduled') {
+                    badge.className += ' text-bg-primary';
+                } else if (status == 'Closed') {
+                    badge.className += ' text-bg-danger';
+                } else {
+                    badge.className += ' text-bg-secondary';
+                }
+
+                badge.innerHTML = status;
+            }
+
+            function ivoteUpdateElectionTimers() {
+                var serverNow = new Date(window.ivoteServerNowText).getTime();
+                var offset = serverNow - window.ivotePageLoadedAt;
+                var now = new Date(new Date().getTime() + offset);
+                var nowMs = now.getTime();
+
+                var clock = document.getElementById('ivotePHClock');
+
+                if (clock) {
+                    clock.innerHTML = ivoteFormatPHClock(now);
+                }
+
+                var timer = document.getElementById('ivoteElectionTimer');
+                var caption = document.getElementById('ivoteTimerCaption');
+
+                if (!timer) {
+                    return;
+                }
+
+                var status = timer.getAttribute('data-status');
+                var startText = timer.getAttribute('data-start');
+                var endText = timer.getAttribute('data-end');
+
+                if (!startText || !endText) {
+                    timer.innerHTML = 'No schedule set';
+                    ivoteSetBadge('Closed');
+                    return;
+                }
+
+                var startMs = new Date(startText).getTime();
+                var endMs = new Date(endText).getTime();
+
+                if (status == 'Closed') {
+                    timer.innerHTML = 'Voting is closed';
+                    ivoteSetBadge('Closed');
+
+                    if (caption) {
+                        caption.innerHTML = 'Voting access is disabled.';
+                    }
+                } else if (nowMs < startMs) {
+                    timer.innerHTML = 'Starts in ' + ivoteFormatDuration((startMs - nowMs) / 1000);
+                    ivoteSetBadge('Scheduled');
+
+                    if (caption) {
+                        caption.innerHTML = 'Voting will open automatically.';
+                    }
+                } else if (nowMs >= startMs && nowMs <= endMs) {
+                    timer.innerHTML = 'Ends in ' + ivoteFormatDuration((endMs - nowMs) / 1000);
+                    ivoteSetBadge('Open');
+
+                    if (caption) {
+                        caption.innerHTML = 'Voting is currently open.';
+                    }
+                } else {
+                    timer.innerHTML = 'Voting schedule ended';
+                    ivoteSetBadge('Closed');
+
+                    if (caption) {
+                        caption.innerHTML = 'Voting was automatically closed.';
+                    }
+                }
+            }
+
+            function ivoteSyncElectionStatus() {
+                var xhr = new XMLHttpRequest();
+
+                xhr.open('GET', 'elections.php?ajax=status&_=' + new Date().getTime(), true);
+
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+
+                            window.ivoteServerNowText = data.server_time;
+                            window.ivotePageLoadedAt = new Date().getTime();
+
+                            var timer = document.getElementById('ivoteElectionTimer');
+
+                            if (timer) {
+                                timer.setAttribute('data-status', data.stored_status);
+                                timer.setAttribute('data-start', data.start_datetime);
+                                timer.setAttribute('data-end', data.end_datetime);
+                            }
+
+                            ivoteSetBadge(data.runtime_status);
+                            ivoteUpdateElectionTimers();
+                        } catch (e) {
+                        }
+                    }
+                };
+
+                xhr.send();
+            }
+
+            window.ivoteServerNowText = '<?php echo date('Y-m-d\TH:i:s'); ?>+08:00';
+            window.ivotePageLoadedAt = new Date().getTime();
+
+            ivoteUpdateElectionTimers();
+            setInterval(ivoteUpdateElectionTimers, 1000);
+            setInterval(ivoteSyncElectionStatus, 5000);
+        </script>
+
+        <?php
+        require_once dirname(__FILE__) . '/../includes/footer.php';
+        ?>

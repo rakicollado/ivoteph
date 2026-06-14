@@ -23,6 +23,89 @@ function ivoteph_date_display($value) {
     return date('F j, Y', $timestamp);
 }
 
+date_default_timezone_set('Asia/Manila');
+
+function ivoteph_datetime_display($value) {
+    if ($value === null || $value == '' || $value == '0000-00-00 00:00:00') {
+        return 'N/A';
+    }
+
+    $timestamp = strtotime($value);
+
+    if (!$timestamp) {
+        return $value;
+    }
+
+    return date('F j, Y g:i A', $timestamp);
+}
+
+function ivoteph_table_exists($conn, $table_name) {
+    $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
+
+    if ($table_name == '') {
+        return false;
+    }
+
+    $sql = "SHOW TABLES LIKE '" . mysqli_real_escape_string($conn, $table_name) . "'";
+    $result = mysqli_query($conn, $sql);
+
+    if (!$result) {
+        return false;
+    }
+
+    $row = mysqli_fetch_row($result);
+    mysqli_free_result($result);
+
+    return $row ? true : false;
+}
+
+function ivoteph_column_exists($conn, $table_name, $column_name) {
+    $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
+    $column_name = preg_replace('/[^A-Za-z0-9_]/', '', $column_name);
+
+    if ($table_name == '' || $column_name == '') {
+        return false;
+    }
+
+    $sql = "SHOW COLUMNS FROM `" . $table_name . "` LIKE '" . mysqli_real_escape_string($conn, $column_name) . "'";
+    $result = mysqli_query($conn, $sql);
+
+    if (!$result) {
+        return false;
+    }
+
+    $row = mysqli_fetch_row($result);
+    mysqli_free_result($result);
+
+    return $row ? true : false;
+}
+
+function ivoteph_position_icon($position_name) {
+    $position_name = strtolower((string) $position_name);
+
+    if (strpos($position_name, 'president') !== false) {
+        return 'fa-landmark';
+    }
+
+    if (strpos($position_name, 'senator') !== false) {
+        return 'fa-users';
+    }
+
+    if (strpos($position_name, 'governor') !== false) {
+        return 'fa-building-flag';
+    }
+
+    if (strpos($position_name, 'mayor') !== false) {
+        return 'fa-city';
+    }
+
+    if (strpos($position_name, 'party') !== false) {
+        return 'fa-people-group';
+    }
+
+    return 'fa-check-to-slot';
+}
+
 $profile_voter_id = isset($auth_voter_id) ? $auth_voter_id : $_SESSION['voter_id'];
 $profile_first_name = isset($auth_first_name) ? $auth_first_name : '';
 $profile_middle_name = '';
@@ -161,6 +244,179 @@ $profile_complete_address = '';
 
 if (count($address_parts) > 0) {
     $profile_complete_address = implode(', ', $address_parts);
+}
+
+$ballot_id = 0;
+$ballot_election_id = 0;
+$ballot_election_name = 'No submitted ballot yet';
+$ballot_status = 'Not Submitted';
+$ballot_status_class = 'pending';
+$ballot_submitted_at = 'N/A';
+$ballot_reference = 'N/A';
+$ballot_votes = array();
+$ballot_error = '';
+$total_ballot_votes = 0;
+$latest_ballot = false;
+
+if (ivoteph_table_exists($conn, 'ballots')) {
+    $ballot_status_column = '';
+    $ballot_time_column = '';
+    $ballot_order_column = 'ballot_id';
+
+    if (ivoteph_column_exists($conn, 'ballots', 'ballot_status')) {
+        $ballot_status_column = 'ballot_status';
+    } elseif (ivoteph_column_exists($conn, 'ballots', 'status')) {
+        $ballot_status_column = 'status';
+    }
+
+    if (ivoteph_column_exists($conn, 'ballots', 'submitted_at')) {
+        $ballot_time_column = 'submitted_at';
+        $ballot_order_column = 'submitted_at';
+    } elseif (ivoteph_column_exists($conn, 'ballots', 'voted_at')) {
+        $ballot_time_column = 'voted_at';
+        $ballot_order_column = 'voted_at';
+    } elseif (ivoteph_column_exists($conn, 'ballots', 'created_at')) {
+        $ballot_time_column = 'created_at';
+        $ballot_order_column = 'created_at';
+    }
+
+    if (ivoteph_column_exists($conn, 'ballots', 'ballot_id') && ivoteph_column_exists($conn, 'ballots', 'voter_id')) {
+        $select_status = ($ballot_status_column != '') ? "b.`" . $ballot_status_column . "` AS detected_ballot_status" : "'Submitted' AS detected_ballot_status";
+        $select_time = ($ballot_time_column != '') ? "b.`" . $ballot_time_column . "` AS detected_submitted_at" : "NULL AS detected_submitted_at";
+        $join_elections = '';
+        $select_election_name = "'' AS detected_election_name";
+
+        if (ivoteph_table_exists($conn, 'elections') && ivoteph_column_exists($conn, 'ballots', 'election_id')) {
+            $join_elections = " LEFT JOIN elections e ON b.election_id = e.election_id ";
+
+            if (ivoteph_column_exists($conn, 'elections', 'election_name')) {
+                $select_election_name = "e.election_name AS detected_election_name";
+            } elseif (ivoteph_column_exists($conn, 'elections', 'election_title')) {
+                $select_election_name = "e.election_title AS detected_election_name";
+            } elseif (ivoteph_column_exists($conn, 'elections', 'title')) {
+                $select_election_name = "e.title AS detected_election_name";
+            }
+        }
+
+        $sql_ballot = "
+            SELECT
+                b.ballot_id,
+                " . (ivoteph_column_exists($conn, 'ballots', 'election_id') ? "b.election_id" : "0") . " AS detected_election_id,
+                " . $select_status . ",
+                " . $select_time . ",
+                " . $select_election_name . "
+            FROM ballots b
+            " . $join_elections . "
+            WHERE b.voter_id = ?
+            ORDER BY b.`" . $ballot_order_column . "` DESC, b.ballot_id DESC
+            LIMIT 1
+        ";
+
+        $stmt_ballot = mysqli_prepare($conn, $sql_ballot);
+
+        if ($stmt_ballot) {
+            mysqli_stmt_bind_param($stmt_ballot, 's', $profile_voter_id);
+            mysqli_stmt_execute($stmt_ballot);
+            mysqli_stmt_bind_result($stmt_ballot, $db_ballot_id, $db_election_id, $db_ballot_status, $db_submitted_at, $db_election_name);
+
+            if (mysqli_stmt_fetch($stmt_ballot)) {
+                $ballot_id = (int) $db_ballot_id;
+                $ballot_election_id = (int) $db_election_id;
+                $ballot_status = ($db_ballot_status != '') ? $db_ballot_status : 'Submitted';
+                $ballot_submitted_at = ivoteph_datetime_display($db_submitted_at);
+                $ballot_election_name = ($db_election_name != '') ? $db_election_name : 'Election #' . $ballot_election_id;
+                $ballot_reference = 'BAL-' . str_pad((string) $ballot_id, 6, '0', STR_PAD_LEFT);
+                $latest_ballot = true;
+            }
+
+            mysqli_stmt_close($stmt_ballot);
+        } else {
+            $ballot_error = mysqli_error($conn);
+        }
+    }
+}
+
+if ($ballot_id > 0 && ivoteph_table_exists($conn, 'votes')) {
+    $vote_time_select = 'NULL AS detected_vote_time';
+
+    if (ivoteph_column_exists($conn, 'votes', 'voted_at')) {
+        $vote_time_select = 'v.voted_at AS detected_vote_time';
+    } elseif (ivoteph_column_exists($conn, 'votes', 'created_at')) {
+        $vote_time_select = 'v.created_at AS detected_vote_time';
+    } elseif (ivoteph_column_exists($conn, 'votes', 'submitted_at')) {
+        $vote_time_select = 'v.submitted_at AS detected_vote_time';
+    }
+
+    $order_sql = 'p.position_id ASC, c.full_name ASC';
+
+    if (ivoteph_table_exists($conn, 'positions') && ivoteph_column_exists($conn, 'positions', 'display_order')) {
+        $order_sql = 'p.display_order ASC, p.position_id ASC, c.full_name ASC';
+    }
+
+    $where_sql = 'v.ballot_id = ?';
+    $bind_type = 'i';
+    $bind_value_int = $ballot_id;
+
+    $sql_votes = "
+        SELECT
+            v.vote_id,
+            v.position_id,
+            v.candidate_id,
+            " . $vote_time_select . ",
+            c.full_name,
+            c.political_party,
+            c.platform,
+            p.position_name
+        FROM votes v
+        LEFT JOIN candidates c ON v.candidate_id = c.candidate_id
+        LEFT JOIN positions p ON v.position_id = p.position_id
+        WHERE " . $where_sql . "
+        ORDER BY " . $order_sql . "
+    ";
+
+    $stmt_votes = mysqli_prepare($conn, $sql_votes);
+
+    if ($stmt_votes) {
+        mysqli_stmt_bind_param($stmt_votes, $bind_type, $bind_value_int);
+        mysqli_stmt_execute($stmt_votes);
+        mysqli_stmt_bind_result(
+            $stmt_votes,
+            $db_vote_id,
+            $db_position_id,
+            $db_candidate_id,
+            $db_vote_time,
+            $db_candidate_name,
+            $db_party,
+            $db_platform,
+            $db_position_name
+        );
+
+        while (mysqli_stmt_fetch($stmt_votes)) {
+            $ballot_votes[] = array(
+                'vote_id' => $db_vote_id,
+                'position_id' => $db_position_id,
+                'candidate_id' => $db_candidate_id,
+                'vote_time' => $db_vote_time,
+                'candidate_name' => $db_candidate_name,
+                'party' => $db_party,
+                'platform' => $db_platform,
+                'position_name' => $db_position_name
+            );
+        }
+
+        mysqli_stmt_close($stmt_votes);
+    } else {
+        $ballot_error = mysqli_error($conn);
+    }
+}
+
+$total_ballot_votes = count($ballot_votes);
+
+if ($total_ballot_votes > 0) {
+    $ballot_status = 'Submitted';
+    $ballot_status_class = 'submitted';
+} else {
+    $ballot_status_class = 'pending';
 }
 ?>
 <!doctype html>
@@ -474,6 +730,26 @@ if (count($address_parts) > 0) {
             font-size: 12px;
             font-weight: 950;
             white-space: nowrap;
+        }
+
+        .ballotStatusPill.submitted {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .ballotStatusPill.pending {
+            background: #fff7d6;
+            color: #a16207;
+        }
+
+        .ballotItemStatus.submitted {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .ballotItemStatus.pending {
+            background: #fff7d6;
+            color: #a16207;
         }
 
         .ballotGrid {
@@ -1024,14 +1300,18 @@ if (count($address_parts) > 0) {
                 <h1>My Ballot</h1>
 
                 <p>
-                    Review your selected candidates and ballot status before final submission.
-                    This page is prepared for the final MySQL ballot and vote records.
+                    Review your submitted ballot record from the MySQL ballots and votes tables.
+                    Your private choices are shown only inside your voter account.
                 </p>
             </div>
 
-            <span class="ballotStatusPill">
-                <i class="fa-solid fa-clock"></i>
-                Not Submitted
+            <span class="ballotStatusPill <?php echo ivoteph_h($ballot_status_class); ?>">
+                <?php if ($total_ballot_votes > 0) { ?>
+                    <i class="fa-solid fa-circle-check"></i>
+                <?php } else { ?>
+                    <i class="fa-solid fa-clock"></i>
+                <?php } ?>
+                <?php echo ivoteph_h($ballot_status); ?>
             </span>
         </section>
 
@@ -1041,69 +1321,85 @@ if (count($address_parts) > 0) {
                     <div>
                         <h2>Current Ballot Selections</h2>
                         <p class="text-muted mb-0">
-                            Your saved choices will appear here once the voting form is connected to MySQL.
+                            These are the candidates saved under your submitted ballot.
                         </p>
                     </div>
                 </div>
 
-                <div class="alert alert-primary rounded-4 p-4">
-                    <i class="fa-solid fa-circle-info me-2"></i>
-                    This page will later read from the ballots and votes tables and show only your private selected candidates.
-                </div>
+                <?php if (isset($_GET['success']) && $_GET['success'] == 'voted') { ?>
+                    <div class="alert alert-success rounded-4 p-4">
+                        <i class="fa-solid fa-circle-check me-2"></i>
+                        Your ballot was submitted successfully.
+                    </div>
+                <?php } ?>
 
-                <div class="ballotPlaceholder">
-                    <div class="ballotItem">
-                        <div class="ballotItemIcon">
-                            <i class="fa-solid fa-landmark"></i>
-                        </div>
+                <?php if ($ballot_error != '') { ?>
+                    <div class="alert alert-danger rounded-4 p-4">
+                        <i class="fa-solid fa-circle-exclamation me-2"></i>
+                        Unable to load ballot details: <?php echo ivoteph_h($ballot_error); ?>
+                    </div>
+                <?php } ?>
 
-                        <div>
-                            <h4>President</h4>
-                            <p>No candidate selected yet.</p>
-                        </div>
-
-                        <span class="ballotItemStatus">Pending</span>
+                <?php if ($total_ballot_votes > 0) { ?>
+                    <div class="alert alert-success rounded-4 p-4">
+                        <i class="fa-solid fa-lock me-2"></i>
+                        Your ballot has been submitted and locked. You cannot edit your choices after submission.
                     </div>
 
-                    <div class="ballotItem">
-                        <div class="ballotItemIcon">
-                            <i class="fa-solid fa-user-tie"></i>
-                        </div>
+                    <div class="ballotPlaceholder">
+                        <?php foreach ($ballot_votes as $vote) { ?>
+                            <?php
+                            $display_position = $vote['position_name'];
+                            if ($display_position == '') {
+                                $display_position = 'Position #' . $vote['position_id'];
+                            }
 
-                        <div>
-                            <h4>Vice President</h4>
-                            <p>No candidate selected yet.</p>
-                        </div>
+                            $display_candidate = $vote['candidate_name'];
+                            if ($display_candidate == '') {
+                                $display_candidate = 'Candidate #' . $vote['candidate_id'];
+                            }
+                            ?>
 
-                        <span class="ballotItemStatus">Pending</span>
+                            <div class="ballotItem">
+                                <div class="ballotItemIcon">
+                                    <i class="fa-solid <?php echo ivoteph_h(ivoteph_position_icon($display_position)); ?>"></i>
+                                </div>
+
+                                <div>
+                                    <h4><?php echo ivoteph_h($display_position); ?></h4>
+                                    <p>
+                                        <strong><?php echo ivoteph_h($display_candidate); ?></strong>
+                                        <?php if ($vote['party'] != '') { ?>
+                                            <br><span><?php echo ivoteph_h($vote['party']); ?></span>
+                                        <?php } ?>
+                                    </p>
+                                </div>
+
+                                <span class="ballotItemStatus submitted">Submitted</span>
+                            </div>
+                        <?php } ?>
+                    </div>
+                <?php } else { ?>
+                    <div class="alert alert-primary rounded-4 p-4">
+                        <i class="fa-solid fa-circle-info me-2"></i>
+                        You have not submitted a ballot yet. Go to the Voting page to select candidates and submit your official ballot.
                     </div>
 
-                    <div class="ballotItem">
-                        <div class="ballotItemIcon">
-                            <i class="fa-solid fa-users"></i>
-                        </div>
+                    <div class="ballotPlaceholder">
+                        <div class="ballotItem">
+                            <div class="ballotItemIcon">
+                                <i class="fa-solid fa-check-to-slot"></i>
+                            </div>
 
-                        <div>
-                            <h4>Senator</h4>
-                            <p>No candidate selected yet.</p>
-                        </div>
+                            <div>
+                                <h4>No submitted ballot found</h4>
+                                <p>Your selected candidates will appear here after successful voting.</p>
+                            </div>
 
-                        <span class="ballotItemStatus">Pending</span>
+                            <span class="ballotItemStatus pending">Pending</span>
+                        </div>
                     </div>
-
-                    <div class="ballotItem">
-                        <div class="ballotItemIcon">
-                            <i class="fa-solid fa-people-group"></i>
-                        </div>
-
-                        <div>
-                            <h4>Party List</h4>
-                            <p>No candidate selected yet.</p>
-                        </div>
-
-                        <span class="ballotItemStatus">Pending</span>
-                    </div>
-                </div>
+                <?php } ?>
             </div>
 
             <aside class="sectionCard userCard">
@@ -1119,7 +1415,27 @@ if (count($address_parts) > 0) {
 
                     <div class="summaryItem">
                         <span>Status</span>
-                        <strong>Not Submitted</strong>
+                        <strong><?php echo ivoteph_h($ballot_status); ?></strong>
+                    </div>
+
+                    <div class="summaryItem">
+                        <span>Election</span>
+                        <strong><?php echo ivoteph_h($ballot_election_name); ?></strong>
+                    </div>
+
+                    <div class="summaryItem">
+                        <span>Ballot Reference</span>
+                        <strong><?php echo ivoteph_h($ballot_reference); ?></strong>
+                    </div>
+
+                    <div class="summaryItem">
+                        <span>Submitted At</span>
+                        <strong><?php echo ivoteph_h($ballot_submitted_at); ?></strong>
+                    </div>
+
+                    <div class="summaryItem">
+                        <span>Total Choices</span>
+                        <strong><?php echo ivoteph_h($total_ballot_votes); ?></strong>
                     </div>
 
                     <div class="summaryItem">
@@ -1132,10 +1448,17 @@ if (count($address_parts) > 0) {
                         <strong>One voter, one ballot</strong>
                     </div>
 
-                    <a href="startvoting.php" class="btn btn-primary py-3 fw-bold rounded-4">
-                        <i class="fa-solid fa-check-to-slot me-2"></i>
-                        Go to Voting
-                    </a>
+                    <?php if ($total_ballot_votes > 0) { ?>
+                        <a href="results.php" class="btn btn-primary py-3 fw-bold rounded-4">
+                            <i class="fa-solid fa-chart-simple me-2"></i>
+                            View Results
+                        </a>
+                    <?php } else { ?>
+                        <a href="startvoting.php" class="btn btn-primary py-3 fw-bold rounded-4">
+                            <i class="fa-solid fa-check-to-slot me-2"></i>
+                            Go to Voting
+                        </a>
+                    <?php } ?>
                 </div>
             </aside>
         </section>
@@ -1221,7 +1544,7 @@ if (count($address_parts) > 0) {
 
                         <div class="profileFullItem">
                             <span>Ballot Status</span>
-                            <strong>Not Submitted</strong>
+                            <strong><?php echo ivoteph_h($ballot_status); ?></strong>
                         </div>
 
                         <div class="profileFullItem">
@@ -1229,10 +1552,6 @@ if (count($address_parts) > 0) {
                             <strong>Voter</strong>
                         </div>
 
-                        <div class="profileFullItem">
-                            <span>Account Access</span>
-                            <strong><?php echo ivoteph_h($profile_account_access); ?></strong>
-                        </div>
                     </div>
 
                     <div class="profileSectionTitle">
@@ -1266,10 +1585,6 @@ if (count($address_parts) > 0) {
                             <strong><?php echo ivoteph_h($profile_sex); ?></strong>
                         </div>
 
-                        <div class="profileFullItem">
-                            <span>Civil Status</span>
-                            <strong>Single</strong>
-                        </div>
                     </div>
 
                     <div class="profileSectionTitle">
@@ -1315,10 +1630,6 @@ if (count($address_parts) > 0) {
                             <strong><?php echo ivoteph_h($profile_barangay); ?></strong>
                         </div>
 
-                        <div class="profileFullItem">
-                            <span>ZIP Code</span>
-                            <strong>N/A</strong>
-                        </div>
 
                         <div class="profileFullItem">
                             <span>Country</span>

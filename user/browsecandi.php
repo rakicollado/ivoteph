@@ -234,32 +234,76 @@ $sql_candidates = "
         c.political_party,
         c.photo,
         c.platform,
-        p.position_name,
-        p.display_order
+        c.election_scope,
+        c.region,
+        c.province,
+        c.city_municipality,
+        p.position_name
     FROM candidates c
     LEFT JOIN positions p ON c.position_id = p.position_id
-    ORDER BY p.display_order ASC, p.position_name ASC, c.full_name ASC
+    WHERE
+        p.position_name IN ('President', 'Vice President', 'Senator', 'Party-list')
+        OR LOWER(IFNULL(c.election_scope, '')) = 'national'
+        OR (
+            p.position_name = 'Governor'
+            AND LOWER(TRIM(IFNULL(c.province, ''))) = LOWER(TRIM(?))
+        )
+        OR (
+            p.position_name = 'Mayor'
+            AND LOWER(TRIM(IFNULL(c.province, ''))) = LOWER(TRIM(?))
+            AND (
+                LOWER(TRIM(IFNULL(c.city_municipality, ''))) = LOWER(TRIM(?))
+                OR REPLACE(LOWER(TRIM(IFNULL(c.city_municipality, ''))), ' city', '') = REPLACE(LOWER(TRIM(?)), ' city', '')
+            )
+        )
+    ORDER BY
+        CASE p.position_name
+            WHEN 'President' THEN 1
+            WHEN 'Vice President' THEN 2
+            WHEN 'Senator' THEN 3
+            WHEN 'Party-list' THEN 4
+            WHEN 'Governor' THEN 5
+            WHEN 'Mayor' THEN 6
+            ELSE 99
+        END ASC,
+        c.full_name ASC
 ";
 
-$result_candidates = mysqli_query($conn, $sql_candidates);
+$stmt_candidates = mysqli_prepare($conn, $sql_candidates);
 
-if ($result_candidates) {
-    while ($row = mysqli_fetch_assoc($result_candidates)) {
-        $position_name = $row['position_name'];
+if ($stmt_candidates) {
+    mysqli_stmt_bind_param(
+        $stmt_candidates,
+        'ssss',
+        $profile_province,
+        $profile_province,
+        $profile_city_municipality,
+        $profile_city_municipality
+    );
 
-        if ($position_name == '') {
-            $position_name = 'Unassigned';
+    mysqli_stmt_execute($stmt_candidates);
+    $result_candidates = mysqli_stmt_get_result($stmt_candidates);
+
+    if ($result_candidates) {
+        while ($row = mysqli_fetch_assoc($result_candidates)) {
+            $position_name = $row['position_name'];
+
+            if ($position_name == '') {
+                $position_name = 'Unassigned';
+            }
+
+            $row['position_name'] = $position_name;
+            $candidates[] = $row;
+
+            if (!in_array($position_name, $positions)) {
+                $positions[] = $position_name;
+            }
         }
 
-        $row['position_name'] = $position_name;
-        $candidates[] = $row;
-
-        if (!in_array($position_name, $positions)) {
-            $positions[] = $position_name;
-        }
+        mysqli_free_result($result_candidates);
     }
 
-    mysqli_free_result($result_candidates);
+    mysqli_stmt_close($stmt_candidates);
 }
 
 $total_candidates = count($candidates);
@@ -1204,7 +1248,7 @@ $total_positions = count($positions);
                     <article
                         class="candidateCard userCard"
                         data-position="<?php echo ivoteph_h($candidate_position); ?>"
-                        data-search="<?php echo ivoteph_h(strtolower($candidate_name . ' ' . $candidate_party . ' ' . $candidate_position . ' ' . $candidate_platform)); ?>">
+                        data-search="<?php echo ivoteph_h(strtolower($candidate_name . ' ' . $candidate_party . ' ' . $candidate_position . ' ' . $candidate_platform . ' ' . $candidate['province'] . ' ' . $candidate['city_municipality'])); ?>">
 
                         <div class="candidateTop">
                             <div class="candidatePhoto">
@@ -1287,11 +1331,6 @@ $total_positions = count($positions);
                             <span>Account Type</span>
                             <strong>Voter</strong>
                         </div>
-
-                        <div class="profileFullItem">
-                            <span>Account Access</span>
-                            <strong><?php echo ivoteph_h($profile_account_access); ?></strong>
-                        </div>
                     </div>
 
                     <div class="profileSectionTitle">
@@ -1323,11 +1362,6 @@ $total_positions = count($positions);
                         <div class="profileFullItem">
                             <span>Sex</span>
                             <strong><?php echo ivoteph_h($profile_sex); ?></strong>
-                        </div>
-
-                        <div class="profileFullItem">
-                            <span>Civil Status</span>
-                            <strong>Single</strong>
                         </div>
                     </div>
 
@@ -1372,11 +1406,6 @@ $total_positions = count($positions);
                         <div class="profileFullItem">
                             <span>Barangay</span>
                             <strong><?php echo ivoteph_h($profile_barangay); ?></strong>
-                        </div>
-
-                        <div class="profileFullItem">
-                            <span>ZIP Code</span>
-                            <strong>N/A</strong>
                         </div>
 
                         <div class="profileFullItem">

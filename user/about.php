@@ -1205,11 +1205,6 @@ if (count($address_parts) > 0) {
                             <span>Account Type</span>
                             <strong>Voter</strong>
                         </div>
-
-                        <div class="profileFullItem">
-                            <span>Account Access</span>
-                            <strong><?php echo ivoteph_h($profile_account_access); ?></strong>
-                        </div>
                     </div>
 
                     <div class="profileSectionTitle">
@@ -1241,11 +1236,6 @@ if (count($address_parts) > 0) {
                         <div class="profileFullItem">
                             <span>Sex</span>
                             <strong><?php echo ivoteph_h($profile_sex); ?></strong>
-                        </div>
-
-                        <div class="profileFullItem">
-                            <span>Civil Status</span>
-                            <strong>Single</strong>
                         </div>
                     </div>
 
@@ -1290,11 +1280,6 @@ if (count($address_parts) > 0) {
                         <div class="profileFullItem">
                             <span>Barangay</span>
                             <strong><?php echo ivoteph_h($profile_barangay); ?></strong>
-                        </div>
-
-                        <div class="profileFullItem">
-                            <span>ZIP Code</span>
-                            <strong>N/A</strong>
                         </div>
 
                         <div class="profileFullItem">

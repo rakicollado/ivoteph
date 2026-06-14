@@ -23,6 +23,14 @@ if (isset($_GET['error'])) {
         $error_message = 'This Voter ID already has an account. Please log in instead.';
     } elseif ($_GET['error'] == 'email_exists') {
         $error_message = 'This email address is already used by another voter.';
+    } elseif ($_GET['error'] == 'mobile_exists') {
+        $error_message = 'This mobile number is already used by another voter account.';
+    } elseif ($_GET['error'] == 'duplicate_credentials') {
+        $error_message = 'The details you entered match an existing voter account. Please log in instead.';
+    } elseif ($_GET['error'] == 'not_certified') {
+        $error_message = 'You must certify that the information you provided is accurate and complete.';
+    } elseif ($_GET['error'] == 'identity_mismatch') {
+        $error_message = 'The information you entered does not match the official voter record for that Voter ID.';
     } elseif ($_GET['error'] == 'server_error') {
         $error_message = 'A server error occurred. Please try again.';
     }
@@ -214,14 +222,18 @@ if (isset($_GET['error'])) {
                         <div class="col-md-6">
                             <div class="formGroup">
                                 <label for="region" class="formLabel">Region</label>
-                                <input id="region" name="region" type="text" class="formInput" required>
+                                <select id="region" name="region" class="formSelect" required>
+                                    <option value="">Loading regions...</option>
+                                </select>
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="formGroup">
                                 <label for="province" class="formLabel">Province</label>
-                                <input id="province" name="province" type="text" class="formInput" required>
+                                <select id="province" name="province" class="formSelect" required disabled>
+                                    <option value="">Select region first</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -230,21 +242,23 @@ if (isset($_GET['error'])) {
                         <div class="col-md-6">
                             <div class="formGroup">
                                 <label for="city_municipality" class="formLabel">City / Municipality</label>
-                                <input id="city_municipality" name="city_municipality" type="text" class="formInput" required>
+                                <select id="city_municipality" name="city_municipality" class="formSelect" required disabled>
+                                    <option value="">Select province first</option>
+                                </select>
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="formGroup">
                                 <label for="barangay" class="formLabel">Barangay</label>
-                                <input id="barangay" name="barangay" type="text" class="formInput" required>
+                                <input id="barangay" name="barangay" type="text" class="formInput" placeholder="Enter barangay" required>
                             </div>
                         </div>
                     </div>
 
                     <div class="formGroup">
                         <label for="specific_address" class="formLabel">Specific Address</label>
-                        <input id="specific_address" name="specific_address" type="text" class="formInput" required>
+                        <input id="specific_address" name="specific_address" type="text" class="formInput" placeholder="House no., street, subdivision, etc." required>
                     </div>
                 </div>
 
@@ -288,22 +302,255 @@ if (isset($_GET['error'])) {
     </div>
 
     <script>
-        document.getElementById('registerForm').addEventListener('submit', function (e) {
-            var password = document.getElementById('password').value;
-            var confirmPassword = document.getElementById('confirm_password').value;
+        (function () {
+            var regionSelect = document.getElementById('region');
+            var provinceSelect = document.getElementById('province');
+            var citySelect = document.getElementById('city_municipality');
+            var registerForm = document.getElementById('registerForm');
 
-            if (password !== confirmPassword) {
-                e.preventDefault();
-                alert('Passwords do not match.');
-                return false;
+            var psgcBaseUrl = 'https://psgc.gitlab.io/api';
+
+            var fallbackRegions = [
+                { code: '010000000', name: 'Ilocos Region', regionName: 'Region I' },
+                { code: '020000000', name: 'Cagayan Valley', regionName: 'Region II' },
+                { code: '030000000', name: 'Central Luzon', regionName: 'Region III' },
+                { code: '040000000', name: 'CALABARZON', regionName: 'Region IV-A' },
+                { code: '170000000', name: 'MIMAROPA Region', regionName: 'MIMAROPA Region' },
+                { code: '050000000', name: 'Bicol Region', regionName: 'Region V' },
+                { code: '060000000', name: 'Western Visayas', regionName: 'Region VI' },
+                { code: '070000000', name: 'Central Visayas', regionName: 'Region VII' },
+                { code: '080000000', name: 'Eastern Visayas', regionName: 'Region VIII' },
+                { code: '090000000', name: 'Zamboanga Peninsula', regionName: 'Region IX' },
+                { code: '100000000', name: 'Northern Mindanao', regionName: 'Region X' },
+                { code: '110000000', name: 'Davao Region', regionName: 'Region XI' },
+                { code: '120000000', name: 'SOCCSKSARGEN', regionName: 'Region XII' },
+                { code: '130000000', name: 'NCR', regionName: 'National Capital Region' },
+                { code: '140000000', name: 'CAR', regionName: 'Cordillera Administrative Region' },
+                { code: '160000000', name: 'Caraga', regionName: 'Region XIII' },
+                { code: '150000000', name: 'BARMM', regionName: 'Bangsamoro Autonomous Region in Muslim Mindanao' }
+            ];
+
+            function getRegionDisplayName(region) {
+                if (region.regionName && region.name && region.regionName != region.name) {
+                    return region.name + ', ' + region.regionName;
+                }
+
+                return region.name || region.regionName || '';
             }
 
-            if (password.length < 8) {
-                e.preventDefault();
-                alert('Password must be at least 8 characters long.');
-                return false;
+            function clearSelect(selectElement, placeholderText) {
+                selectElement.innerHTML = '';
+
+                var placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = placeholderText;
+                selectElement.appendChild(placeholder);
             }
-        });
+
+            function sortByName(rows) {
+                rows.sort(function (a, b) {
+                    var nameA = (a.name || '').toLowerCase();
+                    var nameB = (b.name || '').toLowerCase();
+
+                    if (nameA < nameB) {
+                        return -1;
+                    }
+
+                    if (nameA > nameB) {
+                        return 1;
+                    }
+
+                    return 0;
+                });
+
+                return rows;
+            }
+
+            function fetchJson(url) {
+                return fetch(url, { cache: 'force-cache' }).then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Unable to load address list.');
+                    }
+
+                    return response.json();
+                });
+            }
+
+            function loadRegions() {
+                clearSelect(regionSelect, 'Select Region');
+                clearSelect(provinceSelect, 'Select region first');
+                clearSelect(citySelect, 'Select province first');
+
+                provinceSelect.disabled = true;
+                citySelect.disabled = true;
+
+                fetchJson(psgcBaseUrl + '/regions/')
+                    .then(function (regions) {
+                        renderRegions(regions);
+                    })
+                    .catch(function () {
+                        renderRegions(fallbackRegions);
+                    });
+            }
+
+            function renderRegions(regions) {
+                clearSelect(regionSelect, 'Select Region');
+
+                regions.forEach(function (region) {
+                    var option = document.createElement('option');
+                    option.value = getRegionDisplayName(region);
+                    option.textContent = getRegionDisplayName(region);
+                    option.setAttribute('data-code', region.code);
+                    regionSelect.appendChild(option);
+                });
+            }
+
+            function loadProvinces(regionCode) {
+                clearSelect(provinceSelect, 'Loading provinces...');
+                clearSelect(citySelect, 'Select province first');
+
+                provinceSelect.disabled = true;
+                citySelect.disabled = true;
+
+                if (!regionCode) {
+                    clearSelect(provinceSelect, 'Select region first');
+                    return;
+                }
+
+                fetchJson(psgcBaseUrl + '/regions/' + encodeURIComponent(regionCode) + '/provinces/')
+                    .then(function (provinces) {
+                        if (!provinces || provinces.length == 0) {
+                            renderNcrProvince(regionCode);
+                            return;
+                        }
+
+                        renderProvinces(sortByName(provinces), false, regionCode);
+                    })
+                    .catch(function () {
+                        clearSelect(provinceSelect, 'Unable to load provinces');
+                        provinceSelect.disabled = true;
+                    });
+            }
+
+            function renderNcrProvince(regionCode) {
+                clearSelect(provinceSelect, 'Select Province');
+
+                var option = document.createElement('option');
+                option.value = 'Metro Manila';
+                option.textContent = 'Metro Manila';
+                option.setAttribute('data-code', regionCode);
+                option.setAttribute('data-region-only', '1');
+                provinceSelect.appendChild(option);
+
+                provinceSelect.disabled = false;
+            }
+
+            function renderProvinces(provinces, isRegionOnly, regionCode) {
+                clearSelect(provinceSelect, 'Select Province');
+
+                provinces.forEach(function (province) {
+                    var option = document.createElement('option');
+                    option.value = province.name;
+                    option.textContent = province.name;
+                    option.setAttribute('data-code', province.code);
+
+                    if (isRegionOnly) {
+                        option.setAttribute('data-region-only', '1');
+                        option.setAttribute('data-region-code', regionCode);
+                    }
+
+                    provinceSelect.appendChild(option);
+                });
+
+                provinceSelect.disabled = false;
+            }
+
+            function loadCities() {
+                var selectedProvinceOption = provinceSelect.options[provinceSelect.selectedIndex];
+                var provinceCode = selectedProvinceOption ? selectedProvinceOption.getAttribute('data-code') : '';
+                var isRegionOnly = selectedProvinceOption ? selectedProvinceOption.getAttribute('data-region-only') : '';
+                var endpoint = '';
+
+                clearSelect(citySelect, 'Loading cities / municipalities...');
+                citySelect.disabled = true;
+
+                if (!provinceCode) {
+                    clearSelect(citySelect, 'Select province first');
+                    return;
+                }
+
+                if (isRegionOnly == '1') {
+                    endpoint = psgcBaseUrl + '/regions/' + encodeURIComponent(provinceCode) + '/cities-municipalities/';
+                } else {
+                    endpoint = psgcBaseUrl + '/provinces/' + encodeURIComponent(provinceCode) + '/cities-municipalities/';
+                }
+
+                fetchJson(endpoint)
+                    .then(function (cities) {
+                        renderCities(sortByName(cities));
+                    })
+                    .catch(function () {
+                        clearSelect(citySelect, 'Unable to load cities / municipalities');
+                        citySelect.disabled = true;
+                    });
+            }
+
+            function renderCities(cities) {
+                clearSelect(citySelect, 'Select City / Municipality');
+
+                cities.forEach(function (city) {
+                    var option = document.createElement('option');
+                    option.value = city.name;
+                    option.textContent = city.name;
+                    option.setAttribute('data-code', city.code);
+                    citySelect.appendChild(option);
+                });
+
+                citySelect.disabled = false;
+            }
+
+            regionSelect.addEventListener('change', function () {
+                var selectedOption = regionSelect.options[regionSelect.selectedIndex];
+                var regionCode = selectedOption ? selectedOption.getAttribute('data-code') : '';
+
+                loadProvinces(regionCode);
+            });
+
+            provinceSelect.addEventListener('change', function () {
+                loadCities();
+            });
+
+            registerForm.addEventListener('submit', function (e) {
+                var password = document.getElementById('password').value;
+                var confirmPassword = document.getElementById('confirm_password').value;
+
+                if (password !== confirmPassword) {
+                    e.preventDefault();
+                    alert('Passwords do not match.');
+                    return false;
+                }
+
+                if (password.length < 8) {
+                    e.preventDefault();
+                    alert('Password must be at least 8 characters long.');
+                    return false;
+                }
+
+                if (!document.getElementById('certify').checked) {
+                    e.preventDefault();
+                    alert('You must certify that the information you provided is accurate and complete.');
+                    return false;
+                }
+
+                if (regionSelect.value == '' || provinceSelect.value == '' || citySelect.value == '') {
+                    e.preventDefault();
+                    alert('Please select your region, province, and city / municipality.');
+                    return false;
+                }
+            });
+
+            loadRegions();
+        })();
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>

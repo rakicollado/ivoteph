@@ -1,8 +1,13 @@
 <?php
-require_once dirname(__FILE__) . '/helpers/functions.php';
-
-if (is_logged_in()) {
-    redirect('admin/index.php');
+if (session_id() == '') {
+    session_start();
 }
 
-redirect('auth/login.php');
+if (isset($_SESSION['admin_id'])) {
+    header('Location: /ivoteph/admin/admin/index.php');
+    exit();
+}
+
+header('Location: /ivoteph/admin/auth/login.php');
+exit();
+?>

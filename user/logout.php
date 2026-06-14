@@ -21,6 +21,10 @@ if (ini_get("session.use_cookies")) {
 
 session_destroy();
 
+if (isset($_GET['silent']) && $_GET['silent'] == '1') {
+    exit();
+}
+
 header('Location: login.php?success=logout');
 exit();
 ?>

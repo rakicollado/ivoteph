@@ -1,62 +1,102 @@
 <?php
-$current_page = basename($_SERVER['PHP_SELF']);
+if (!isset($activePage)) {
+    $activePage = '';
+}
+
+$current_file = basename($_SERVER['PHP_SELF']);
+
+$nav_items = array(
+    array(
+        'key' => 'dashboard',
+        'file' => 'index.php',
+        'label' => 'Dashboard',
+        'icon' => 'bi-speedometer2',
+        'href' => '/ivoteph/admin/admin/index.php'
+    ),
+    array(
+        'key' => 'voters',
+        'file' => 'voters.php',
+        'label' => 'Voter Management',
+        'icon' => 'bi-people-fill',
+        'href' => '/ivoteph/admin/admin/voters.php'
+    ),
+    array(
+        'key' => 'candidates',
+        'file' => 'candidates.php',
+        'label' => 'Candidate Management',
+        'icon' => 'bi-person-badge-fill',
+        'href' => '/ivoteph/admin/admin/candidates.php'
+    ),
+    array(
+        'key' => 'elections',
+        'file' => 'elections.php',
+        'label' => 'Elections',
+        'icon' => 'bi-calendar-event-fill',
+        'href' => '/ivoteph/admin/admin/elections.php'
+    ),
+    array(
+        'key' => 'results',
+        'file' => 'results.php',
+        'label' => 'Results',
+        'icon' => 'bi-graph-up-arrow',
+        'href' => '/ivoteph/admin/admin/results.php'
+    ),
+    array(
+        'key' => 'audit_logs',
+        'file' => 'audit_logs.php',
+        'label' => 'Audit Logs',
+        'icon' => 'bi-clock-history',
+        'href' => '/ivoteph/admin/admin/audit_logs.php'
+    )
+);
 ?>
 
 <aside class="ivote-sidebar" id="ivoteSidebar">
     <div class="ivote-sidebar-header">
-        <a href="../admin/index.php" class="ivote-sidebar-logo-wrap">
-            <img src="../assets/img/ivoteph-logo.png" alt="iVotePH Logo" class="ivote-sidebar-logo-img">
-        </a>
+        <div class="ivote-sidebar-logo-wrap">
+            <a href="/ivoteph/admin/admin/index.php" class="ivote-sidebar-logo">
+                <img src="/ivoteph/admin/assets/img/ivoteph-logo.png" alt="iVotePH" class="ivote-sidebar-logo-img">
+            </a>
+        </div>
 
-        <button type="button" class="ivote-sidebar-close" onclick="closeSidebar()" aria-label="Close sidebar">
+        <button type="button" class="ivote-sidebar-close" id="ivoteSidebarClose" aria-label="Close menu">
             <i class="bi bi-x-lg"></i>
         </button>
     </div>
 
     <nav class="ivote-sidebar-nav">
-        <a href="../admin/index.php" class="ivote-sidebar-link <?php echo ($current_page == 'index.php') ? 'active' : ''; ?>">
-            <i class="bi bi-house-door"></i>
-            <span>Dashboard</span>
-        </a>
+        <?php foreach ($nav_items as $item) { ?>
+            <?php
+            $is_active = false;
 
-        <a href="../admin/voters.php" class="ivote-sidebar-link <?php echo ($current_page == 'voters.php') ? 'active' : ''; ?>">
-            <i class="bi bi-person-check"></i>
-            <span>Voter Management</span>
-        </a>
+            if ($activePage == $item['key']) {
+                $is_active = true;
+            }
 
-        <a href="../admin/candidates.php" class="ivote-sidebar-link <?php echo ($current_page == 'candidates.php') ? 'active' : ''; ?>">
-            <i class="bi bi-person-badge"></i>
-            <span>Candidate Management</span>
-        </a>
+            if ($current_file == $item['file']) {
+                $is_active = true;
+            }
+            ?>
 
-        <a href="../admin/elections.php" class="ivote-sidebar-link <?php echo ($current_page == 'elections.php') ? 'active' : ''; ?>">
-            <i class="bi bi-calendar-check"></i>
-            <span>Elections</span>
-        </a>
-
-        <a href="../admin/results.php" class="ivote-sidebar-link <?php echo ($current_page == 'results.php') ? 'active' : ''; ?>">
-            <i class="bi bi-bar-chart"></i>
-            <span>Results</span>
-        </a>
-
-        <a href="../admin/audit_logs.php" class="ivote-sidebar-link <?php echo ($current_page == 'audit_logs.php') ? 'active' : ''; ?>">
-            <i class="bi bi-clock-history"></i>
-            <span>Audit Logs</span>
-        </a>
+            <a href="<?php echo e($item['href']); ?>" class="ivote-sidebar-link <?php echo $is_active ? 'active' : ''; ?>">
+                <i class="bi <?php echo e($item['icon']); ?>"></i>
+                <span><?php echo e($item['label']); ?></span>
+            </a>
+        <?php } ?>
     </nav>
 </aside>
 
-<div class="ivote-sidebar-overlay" id="ivoteSidebarOverlay" onclick="closeSidebar()"></div>
+<div class="ivote-sidebar-overlay" id="ivoteSidebarOverlay"></div>
 
 <main class="ivote-main">
-    <div class="ivote-dashboard-top-card">
+    <header class="ivote-dashboard-top-card">
         <div class="ivote-dashboard-top-left">
-            <button type="button" class="ivote-menu-clean-btn" onclick="openSidebar()" aria-label="Open sidebar">
+            <button type="button" class="ivote-menu-clean-btn" id="ivoteSidebarOpen" aria-label="Open menu">
                 <i class="bi bi-list"></i>
             </button>
 
-            <a href="../admin/index.php" class="ivote-topbar-logo">
-                <img src="../assets/img/ivoteph-logo.png" alt="iVotePH Logo">
+            <a href="/ivoteph/admin/admin/index.php" class="ivote-topbar-logo">
+                <img src="/ivoteph/admin/assets/img/ivoteph-logo.png" alt="iVotePH">
             </a>
 
             <div class="ivote-dashboard-title-block">
@@ -71,32 +111,4 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <span>Logout</span>
             </button>
         </div>
-    </div>
-
-    <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content ivote-logout-modal">
-                <div class="modal-body">
-                    <div class="ivote-logout-modal-icon">
-                        <i class="bi bi-box-arrow-right"></i>
-                    </div>
-
-                    <h5 id="logoutConfirmModalLabel">Confirm Logout</h5>
-
-                    <p>
-                        Are you sure you want to logout from the iVotePH admin panel?
-                    </p>
-
-                    <div class="ivote-logout-modal-actions">
-                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">
-                            Cancel
-                        </button>
-
-                        <a href="../auth/logout.php" class="btn btn-danger">
-                            Yes, Logout
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </header>

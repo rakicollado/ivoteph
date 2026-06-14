@@ -1,14 +1,14 @@
 <?php
-require_once '../helpers/functions.php';
+require_once dirname(__FILE__) . '/../helpers/functions.php';
 
-if (!isset($_SESSION)) {
+if (session_id() == '') {
     session_start();
 }
 
 $error = '';
 
 if (isset($_SESSION['admin_id'])) {
-    header('Location: ../admin/index.php');
+    header('Location: /ivoteph/admin/admin/index.php');
     exit();
 }
 
@@ -34,13 +34,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($admin && verify_password_compat($password, $admin['password_hash'])) {
+            session_regenerate_id(true);
+
             $_SESSION['admin_id'] = $admin['admin_id'];
             $_SESSION['admin_name'] = $admin['admin_name'];
             $_SESSION['admin_email'] = $admin['email'];
 
+            if (isset($admin['role'])) {
+                $_SESSION['admin_role'] = $admin['role'];
+            } else {
+                $_SESSION['admin_role'] = 'Admin';
+            }
+
+            $_SESSION['ADMIN_LAST_ACTIVITY'] = time();
+
             log_admin_action($admin['admin_name'], 'Login');
 
-            header('Location: ../admin/index.php');
+            header('Location: ../index.php');
             exit();
         } else {
             $error = 'Invalid admin email or password.';
@@ -55,16 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>iVotePH Admin Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
-    <!-- Google Font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-
-    <!-- Custom CSS -->
     <link href="../assets/css/style.css" rel="stylesheet">
 </head>
 <body>
@@ -81,7 +84,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php if ($error != '') { ?>
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                <?php echo htmlspecialchars($error); ?>
+                <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+            </div>
+        <?php } ?>
+
+        <?php if (isset($_GET['error']) && $_GET['error'] == 'login_required') { ?>
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                Please log in first to access the admin dashboard.
+            </div>
+        <?php } ?>
+
+        <?php if (isset($_GET['error']) && $_GET['error'] == 'session_expired') { ?>
+            <div class="alert alert-warning">
+                <i class="bi bi-clock-fill me-1"></i>
+                Your admin session expired. Please log in again.
+            </div>
+        <?php } ?>
+
+        <?php if (isset($_GET['success']) && $_GET['success'] == 'logout') { ?>
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle-fill me-1"></i>
+                You have been logged out successfully.
             </div>
         <?php } ?>
 

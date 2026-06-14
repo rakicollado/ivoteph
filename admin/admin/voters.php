@@ -1,6 +1,5 @@
 <?php
-require_once dirname(__FILE__) . '/../helpers/functions.php';
-
+require_once dirname(__FILE__) . '/../auth_check.php';
 require_admin();
 
 $page_title = 'Voter Management';
@@ -172,7 +171,7 @@ function voter_form_fields($voter, $is_edit)
 
             <div class="col-md-3">
                 <label class="form-label">City / Municipality</label>
-                <input type="text" name="city" class="form-control" value="<?php echo e(isset($voter['city']) ? $voter['city'] : ''); ?>">
+                <input type="text" name="city_municipality" class="form-control" value="<?php echo e(isset($voter['city']) ? $voter['city'] : ''); ?>">
             </div>
 
             <div class="col-md-3">
@@ -206,7 +205,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $email = voter_post_value('email');
         $region = voter_post_value('region');
         $province = voter_post_value('province');
-        $city = voter_post_value('city');
+        $city = voter_post_value('city_municipality');
+        if ($city == '') {
+            $city = voter_post_value('city');
+        }
         $barangay = voter_post_value('barangay');
         $specific_address = voter_post_value('specific_address');
         $registration_status = voter_post_value('registration_status');
@@ -266,18 +268,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if ($has_address) {
                         $addr = $pdo->prepare("
                             INSERT INTO voter_addresses
-                            (voter_id, region, province, city, barangay, specific_address)
+                            (voter_id, region, province, city_municipality, barangay, specific_address)
                             VALUES
                             (:voter_id, :region, :province, :city, :barangay, :specific_address)
                         ");
 
                         $addr->execute(array(
                             ':voter_id' => $voter_id,
-                            ':region' => voter_nullable_value($region),
-                            ':province' => voter_nullable_value($province),
-                            ':city' => voter_nullable_value($city),
-                            ':barangay' => voter_nullable_value($barangay),
-                            ':specific_address' => voter_nullable_value($specific_address)
+                            ':region' => $region,
+                            ':province' => $province,
+                            ':city' => $city,
+                            ':barangay' => $barangay,
+                            ':specific_address' => $specific_address
                         ));
                     }
 
@@ -303,7 +305,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $email = voter_post_value('email');
         $region = voter_post_value('region');
         $province = voter_post_value('province');
-        $city = voter_post_value('city');
+        $city = voter_post_value('city_municipality');
+        if ($city == '') {
+            $city = voter_post_value('city');
+        }
         $barangay = voter_post_value('barangay');
         $specific_address = voter_post_value('specific_address');
         $registration_status = voter_post_value('registration_status');
@@ -365,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         SET
                             region = :region,
                             province = :province,
-                            city = :city,
+                            city_municipality = :city,
                             barangay = :barangay,
                             specific_address = :specific_address
                         WHERE voter_id = :voter_id
@@ -373,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 } else {
                     $addr = $pdo->prepare("
                         INSERT INTO voter_addresses
-                        (voter_id, region, province, city, barangay, specific_address)
+                        (voter_id, region, province, city_municipality, barangay, specific_address)
                         VALUES
                         (:voter_id, :region, :province, :city, :barangay, :specific_address)
                     ");
@@ -381,11 +386,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 $addr->execute(array(
                     ':voter_id' => $voter_id,
-                    ':region' => voter_nullable_value($region),
-                    ':province' => voter_nullable_value($province),
-                    ':city' => voter_nullable_value($city),
-                    ':barangay' => voter_nullable_value($barangay),
-                    ':specific_address' => voter_nullable_value($specific_address)
+                    ':region' => $region,
+                    ':province' => $province,
+                    ':city' => $city,
+                    ':barangay' => $barangay,
+                    ':specific_address' => $specific_address
                 ));
 
                 audit_log('Updated voter record: ' . $voter_id);
@@ -492,7 +497,7 @@ $sql = "
         rv.created_at,
         va.region,
         va.province,
-        va.city,
+        va.city_municipality AS city,
         va.barangay,
         va.specific_address,
         a.account_id,
@@ -667,6 +672,48 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                 </td>
                             </tr>
 
+                        <?php } ?>
+                    <?php } else { ?>
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-5">
+                                No voters found.
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ivote-pagination-wrap">
+            <div class="text-muted small">
+                Page <?php echo number_format($page); ?> of <?php echo number_format($total_pages); ?>
+            </div>
+
+            <nav>
+                <ul class="pagination mb-0">
+                    <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
+                        <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
+                            <a class="page-link" href="voters.php?search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&page=<?php echo $i; ?>">
+                                <?php echo $i; ?>
+                            </a>
+                        </li>
+                    <?php } ?>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<?php if (count($voters) > 0) { ?>
+<?php foreach ($voters as $voter) { ?>
+<?php
+    $full_name = voter_display_name($voter);
+    $birth_display = voter_display_birthdate($voter['birth_date']);
+    $address_line = voter_display_address($voter);
+    $view_modal = voter_modal_id($voter['voter_id'], 'viewVoter');
+    $edit_modal = voter_modal_id($voter['voter_id'], 'editVoter');
+    $delete_modal = voter_modal_id($voter['voter_id'], 'deleteVoter');
+?>
                             <div class="modal fade" id="<?php echo e($view_modal); ?>" tabindex="-1">
                                 <div class="modal-dialog modal-lg modal-dialog-centered">
                                     <div class="modal-content ivote-modal">
@@ -783,37 +830,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                     </div>
                                 </div>
                             </div>
-                        <?php } ?>
-                    <?php } else { ?>
-                        <tr>
-                            <td colspan="9" class="text-center text-muted py-5">
-                                No voters found.
-                            </td>
-                        </tr>
-                    <?php } ?>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="ivote-pagination-wrap">
-            <div class="text-muted small">
-                Page <?php echo number_format($page); ?> of <?php echo number_format($total_pages); ?>
-            </div>
-
-            <nav>
-                <ul class="pagination mb-0">
-                    <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                        <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                            <a class="page-link" href="voters.php?search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&page=<?php echo $i; ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </li>
-                    <?php } ?>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</div>
+<?php } ?>
+<?php } ?>
 
 <div class="modal fade" id="addVoterModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
