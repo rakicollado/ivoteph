@@ -5,12 +5,6 @@ if (session_id() == '') {
 
 require_once __DIR__ . '/db_connect.php';
 
-/*
-    Session timeout:
-    1800 seconds = 30 minutes.
-    You can change this to 900 for 15 minutes.
-*/
-
 $session_timeout = 1800;
 
 if (isset($_SESSION['LAST_ACTIVITY'])) {

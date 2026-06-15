@@ -346,6 +346,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $position_id = candidate_post_value('position_id');
         $election_scope = candidate_clean_scope(candidate_post_value('election_scope'));
         $position_name_for_scope = candidate_position_name_by_id($positions, $position_id);
+
+        /* President, Vice President, Senator, and Party-list must always be National.
+           This prevents newly added national candidates from being hidden on the user side
+           just because the admin form still had Local selected. */
+        if (candidate_is_national_position($position_name_for_scope)) {
+            $election_scope = 'National';
+        }
+
         $region = candidate_post_value('region');
         $province = candidate_post_value('province');
         $city_municipality = candidate_post_value('city_municipality');
@@ -441,6 +449,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $position_id = candidate_post_value('position_id');
         $election_scope = candidate_clean_scope(candidate_post_value('election_scope'));
         $position_name_for_scope = candidate_position_name_by_id($positions, $position_id);
+
+        /* President, Vice President, Senator, and Party-list must always be National.
+           This prevents newly added national candidates from being hidden on the user side
+           just because the admin form still had Local selected. */
+        if (candidate_is_national_position($position_name_for_scope)) {
+            $election_scope = 'National';
+        }
+
         $region = candidate_post_value('region');
         $province = candidate_post_value('province');
         $city_municipality = candidate_post_value('city_municipality');
@@ -1192,11 +1208,20 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         var isGovernor = positionLooksGovernor(positionName);
         var isMayor = positionLooksMayor(positionName);
 
-        if (autoScope && scopeSelect && positionName != '') {
-            if (isGovernor || isMayor) {
-                scopeSelect.value = 'Local';
-            } else if (positionLooksNational(positionName)) {
+        var isNationalPosition = positionLooksNational(positionName);
+
+        if (scopeSelect) {
+            if (isNationalPosition) {
                 scopeSelect.value = 'National';
+                scopeSelect.disabled = true;
+            } else {
+                scopeSelect.disabled = false;
+
+                if (autoScope && positionName != '') {
+                    if (isGovernor || isMayor) {
+                        scopeSelect.value = 'Local';
+                    }
+                }
             }
         }
 

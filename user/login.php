@@ -3,10 +3,6 @@ if (session_id() == '') {
     session_start();
 }
 
-/*
-    If a voter opens login.php while already logged in,
-    clear the session first so the login page opens again.
-*/
 
 if (isset($_SESSION['voter_id'])) {
     $_SESSION = array();

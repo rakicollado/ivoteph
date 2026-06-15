@@ -465,9 +465,145 @@ if ($ballots_table_exists) {
 }
 
 
+$voter_account_chart_data = array(
+    'labels' => array('With Registered Account', 'No Registered Account'),
+    'values' => array(0, 0),
+    'total' => 0
+);
+
+$voter_generation_chart_data = array(
+    'labels' => array(),
+    'values' => array(),
+    'total' => 0
+);
+
+try {
+    if (admin_results_table_exists($pdo, 'registered_voters') && admin_results_table_exists($pdo, 'accounts')) {
+        $sql = "
+            SELECT
+                SUM(CASE WHEN voter_accounts.voter_id IS NULL THEN 0 ELSE 1 END) AS with_account,
+                SUM(CASE WHEN voter_accounts.voter_id IS NULL THEN 1 ELSE 0 END) AS no_account,
+                COUNT(*) AS total_voters
+            FROM registered_voters rv
+            LEFT JOIN (
+                SELECT DISTINCT voter_id
+                FROM accounts
+                WHERE voter_id IS NOT NULL
+                  AND TRIM(voter_id) <> ''
+            ) voter_accounts ON rv.voter_id = voter_accounts.voter_id
+        ";
+
+        $stmt = $pdo->query($sql);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row) {
+            $with_account = isset($row['with_account']) ? (int) $row['with_account'] : 0;
+            $no_account = isset($row['no_account']) ? (int) $row['no_account'] : 0;
+            $account_total = isset($row['total_voters']) ? (int) $row['total_voters'] : ($with_account + $no_account);
+
+            $voter_account_chart_data = array(
+                'labels' => array('With Registered Account', 'No Registered Account'),
+                'values' => array($with_account, $no_account),
+                'total' => $account_total
+            );
+        }
+    } elseif (admin_results_table_exists($pdo, 'registered_voters')) {
+        $registered_total = (int) $pdo->query("SELECT COUNT(*) FROM registered_voters")->fetchColumn();
+
+        $voter_account_chart_data = array(
+            'labels' => array('With Registered Account', 'No Registered Account'),
+            'values' => array(0, $registered_total),
+            'total' => $registered_total
+        );
+    }
+} catch (Exception $e) {
+    $with_account_fallback = (int) $total_accounts;
+    $no_account_fallback = max(0, ((int) $total_registered_voters) - $with_account_fallback);
+
+    $voter_account_chart_data = array(
+        'labels' => array('With Registered Account', 'No Registered Account'),
+        'values' => array($with_account_fallback, $no_account_fallback),
+        'total' => (int) $total_registered_voters
+    );
+}
+
+try {
+    if (admin_results_table_exists($pdo, 'registered_voters')) {
+        $sql = "
+            SELECT
+                CASE
+                    WHEN birth_date IS NULL OR birth_date = '0000-00-00' THEN 'Unknown'
+                    WHEN YEAR(birth_date) >= 2013 THEN 'Gen Alpha'
+                    WHEN YEAR(birth_date) BETWEEN 1997 AND 2012 THEN 'Gen Z'
+                    WHEN YEAR(birth_date) BETWEEN 1981 AND 1996 THEN 'Millennials'
+                    WHEN YEAR(birth_date) BETWEEN 1965 AND 1980 THEN 'Gen X'
+                    WHEN YEAR(birth_date) BETWEEN 1946 AND 1964 THEN 'Baby Boomers'
+                    WHEN YEAR(birth_date) BETWEEN 1928 AND 1945 THEN 'Silent Generation'
+                    ELSE 'Older / Unknown'
+                END AS generation_group,
+                COUNT(*) AS total_voters
+            FROM registered_voters
+            GROUP BY generation_group
+            ORDER BY FIELD(
+                generation_group,
+                'Gen Alpha',
+                'Gen Z',
+                'Millennials',
+                'Gen X',
+                'Baby Boomers',
+                'Silent Generation',
+                'Older / Unknown',
+                'Unknown'
+            )
+        ";
+
+        $stmt = $pdo->query($sql);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $generation_labels = array();
+        $generation_values = array();
+        $generation_total = 0;
+
+        foreach ($rows as $row) {
+            $label = isset($row['generation_group']) && trim((string) $row['generation_group']) != '' ? $row['generation_group'] : 'Unknown';
+            $value = isset($row['total_voters']) ? (int) $row['total_voters'] : 0;
+
+            if ($value > 0) {
+                $generation_labels[] = $label;
+                $generation_values[] = $value;
+                $generation_total += $value;
+            }
+        }
+
+        $voter_generation_chart_data = array(
+            'labels' => $generation_labels,
+            'values' => $generation_values,
+            'total' => $generation_total
+        );
+    }
+} catch (Exception $e) {
+    $voter_generation_chart_data = array(
+        'labels' => array(),
+        'values' => array(),
+        'total' => 0
+    );
+}
+
+
 $position_chart_data = array();
 
+/*
+    Keep Chart.js charts for national positions only.
+    Mayor and Governor are intentionally excluded because those local positions can grow
+    by province/city and may create too many charts on the admin results page.
+*/
 foreach ($position_results as $position_id => $position) {
+    $position_name_for_chart = isset($position['position_name']) ? trim((string) $position['position_name']) : 'Position';
+    $position_name_clean = strtolower($position_name_for_chart);
+
+    if ($position_name_clean == 'mayor' || $position_name_clean == 'governor') {
+        continue;
+    }
+
     $chart_labels = array();
     $chart_votes = array();
 
@@ -478,7 +614,7 @@ foreach ($position_results as $position_id => $position) {
 
     $position_chart_data[] = array(
         'position_id' => (int) $position_id,
-        'position_name' => isset($position['position_name']) ? $position['position_name'] : 'Position',
+        'position_name' => $position_name_for_chart,
         'total_votes' => isset($position['total_votes']) ? (int) $position['total_votes'] : 0,
         'labels' => $chart_labels,
         'votes' => $chart_votes
@@ -495,6 +631,38 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
 
 <style>
+    .ivote-results-stat-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .ivote-position-chart-card {
+        animation: ivoteChartCardEnter 0.45s ease both;
+    }
+
+    @keyframes ivoteChartCardEnter {
+        from {
+            opacity: 0;
+            transform: translateY(14px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 992px) {
+        .ivote-results-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 576px) {
+        .ivote-results-stat-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .ivote-results-chart-section {
         padding: 22px;
     }
@@ -568,24 +736,106 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         position: relative;
     }
 
+
+    .ivote-voter-chart-section {
+        padding: 22px;
+        margin-bottom: 22px;
+    }
+
+    .ivote-voter-chart-section > .ivote-card-header {
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--ivote-border-soft);
+    }
+
+    .ivote-voter-chart-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .ivote-voter-chart-card {
+        padding: 0;
+        overflow: hidden;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid var(--ivote-border);
+        box-shadow: var(--ivote-shadow-soft);
+        animation: ivoteChartCardEnter 0.45s ease both;
+    }
+
+    .ivote-voter-chart-card:nth-child(2) {
+        animation-delay: 0.08s;
+    }
+
+    .ivote-voter-chart-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 20px 12px;
+        margin: 0;
+        border-bottom: 1px solid var(--ivote-border-soft);
+    }
+
+    .ivote-voter-chart-title span {
+        display: block;
+        font-size: 11px;
+        font-weight: 950;
+        color: var(--ivote-blue);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 5px;
+    }
+
+    .ivote-voter-chart-title h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 950;
+        color: var(--ivote-text);
+        line-height: 1.2;
+    }
+
+    .ivote-voter-chart-count {
+        flex: 0 0 auto;
+        background: var(--ivote-blue-light);
+        color: var(--ivote-blue);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .ivote-voter-chart-body {
+        height: 330px;
+        min-height: 330px;
+        padding: 18px;
+        position: relative;
+    }
+
     @media (max-width: 1200px) {
-        .ivote-position-chart-grid {
+        .ivote-position-chart-grid,
+        .ivote-voter-chart-grid {
             grid-template-columns: 1fr;
         }
     }
 
     @media (max-width: 768px) {
-        .ivote-results-chart-section {
+        .ivote-results-chart-section,
+        .ivote-voter-chart-section {
             padding: 16px;
         }
 
-        .ivote-position-chart-header {
+        .ivote-position-chart-header,
+        .ivote-voter-chart-header {
             flex-direction: column;
             align-items: flex-start;
             padding: 16px;
         }
 
-        .ivote-position-chart-body {
+        .ivote-position-chart-body,
+        .ivote-voter-chart-body {
             height: 280px;
             min-height: 280px;
             padding: 12px;
@@ -640,12 +890,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         </div>
 
         <div class="ivote-card ivote-result-stat">
-            <span>Total Vote Records</span>
-            <strong><?php echo number_format($total_votes); ?></strong>
-            <small>Includes multi-select senator votes</small>
-        </div>
-
-        <div class="ivote-card ivote-result-stat">
             <span>Turnout Rate</span>
             <strong><?php echo e($turnout_rate); ?>%</strong>
             <small><?php echo number_format($total_eligible_voters); ?> eligible voters</small>
@@ -659,6 +903,55 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
     </div>
 
 
+    <section class="ivote-card ivote-data-card ivote-voter-chart-section">
+        <div class="ivote-card-header">
+            <div>
+                <h3 class="ivote-section-title">
+                    <i class="bi bi-pie-chart-fill text-primary me-1"></i>
+                    Voter Analytics
+                </h3>
+                <p class="text-muted mb-0">Chart.js voter summary based on registered voter accounts and generation groups.</p>
+            </div>
+        </div>
+
+        <div class="ivote-voter-chart-grid">
+            <section class="ivote-voter-chart-card">
+                <div class="ivote-voter-chart-header">
+                    <div class="ivote-voter-chart-title">
+                        <span>Voter account coverage</span>
+                        <h3>Accounts vs No Account</h3>
+                    </div>
+
+                    <div class="ivote-voter-chart-count">
+                        <?php echo number_format((int) $voter_account_chart_data['total']); ?> voter(s)
+                    </div>
+                </div>
+
+                <div class="ivote-voter-chart-body">
+                    <canvas id="voterAccountChart"></canvas>
+                </div>
+            </section>
+
+            <section class="ivote-voter-chart-card">
+                <div class="ivote-voter-chart-header">
+                    <div class="ivote-voter-chart-title">
+                        <span>Voter demographics</span>
+                        <h3>Registered Voters by Generation</h3>
+                    </div>
+
+                    <div class="ivote-voter-chart-count">
+                        <?php echo number_format((int) $voter_generation_chart_data['total']); ?> voter(s)
+                    </div>
+                </div>
+
+                <div class="ivote-voter-chart-body">
+                    <canvas id="voterGenerationChart"></canvas>
+                </div>
+            </section>
+        </div>
+    </section>
+
+
     <section class="ivote-card ivote-data-card ivote-results-chart-section">
         <div class="ivote-card-header">
             <div>
@@ -666,7 +959,7 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     <i class="bi bi-bar-chart-fill text-primary me-1"></i>
                     Position-Based Vote Results
                 </h3>
-                <p class="text-muted mb-0">Each position is shown in its own chart so candidate rankings are easier to compare and present.</p>
+                <p class="text-muted mb-0">National and party-list positions are shown in Chart.js. Mayor and Governor charts are excluded here to keep the admin results page lighter and faster.</p>
             </div>
         </div>
 
@@ -823,6 +1116,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 <script>
     (function () {
         var positionCharts = <?php echo json_encode($position_chart_data); ?>;
+        var voterAccountChartData = <?php echo json_encode($voter_account_chart_data); ?>;
+        var voterGenerationChartData = <?php echo json_encode($voter_generation_chart_data); ?>;
 
         var rootStyles = window.getComputedStyle(document.documentElement);
         var blue = rootStyles.getPropertyValue('--ivote-blue').trim() || '#0647b8';
@@ -859,6 +1154,86 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
             parent.appendChild(empty);
         }
 
+
+        function sumValues(values) {
+            var total = 0;
+
+            if (!values) {
+                return total;
+            }
+
+            for (var i = 0; i < values.length; i++) {
+                total += Number(values[i]) || 0;
+            }
+
+            return total;
+        }
+
+        function createDoughnutChart(canvasId, chartData, labelText) {
+            var canvas = document.getElementById(canvasId);
+
+            if (!canvas) {
+                return;
+            }
+
+            if (!chartData || !chartData.labels || !chartData.values || chartData.labels.length < 1 || sumValues(chartData.values) < 1) {
+                emptyMessage(canvasId, 'No voter data is available for this chart.');
+                return;
+            }
+
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: labelText,
+                        data: chartData.values,
+                        backgroundColor: makeColors(chartData.labels.length),
+                        borderColor: '#ffffff',
+                        borderWidth: 3,
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '58%',
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1600,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: muted,
+                                boxWidth: 14,
+                                boxHeight: 14,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    var value = Number(context.parsed) || 0;
+                                    var total = sumValues(context.dataset.data);
+                                    var percent = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+
+                                    return context.label + ': ' + value.toLocaleString() + ' voter(s) (' + percent + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         function createPositionChart(chartData) {
             var canvasId = 'positionChart' + chartData.position_id;
             var canvas = document.getElementById(canvasId);
@@ -888,6 +1263,32 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart',
+                        delay: function (context) {
+                            if (context.type !== 'data' || context.mode !== 'default') {
+                                return 0;
+                            }
+
+                            return context.dataIndex * 80;
+                        }
+                    },
+                    transitions: {
+                        show: {
+                            animations: {
+                                x: {
+                                    from: 0,
+                                    duration: 1500,
+                                    easing: 'easeOutQuart'
+                                },
+                                y: {
+                                    duration: 900,
+                                    easing: 'easeOutQuart'
+                                }
+                            }
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
@@ -919,6 +1320,9 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                 }
             });
         }
+
+        createDoughnutChart('voterAccountChart', voterAccountChartData, 'Voters');
+        createDoughnutChart('voterGenerationChart', voterGenerationChartData, 'Voters');
 
         for (var i = 0; i < positionCharts.length; i++) {
             createPositionChart(positionCharts[i]);

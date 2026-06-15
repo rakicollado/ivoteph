@@ -4,7 +4,8 @@
 date_default_timezone_set('Asia/Manila');
 
 if (!function_exists('ivoteph_h')) {
-    function ivoteph_h($value) {
+    function ivoteph_h($value)
+    {
         if ($value === null || $value === '') {
             return 'N/A';
         }
@@ -14,7 +15,8 @@ if (!function_exists('ivoteph_h')) {
 }
 
 if (!function_exists('ivoteph_date_display')) {
-    function ivoteph_date_display($value) {
+    function ivoteph_date_display($value)
+    {
         if ($value === null || $value == '' || $value == '0000-00-00') {
             return 'N/A';
         }
@@ -29,7 +31,8 @@ if (!function_exists('ivoteph_date_display')) {
     }
 }
 
-function ivoteph_table_exists($conn, $table_name) {
+function ivoteph_table_exists($conn, $table_name)
+{
     $sql = "SHOW TABLES LIKE ?";
     $stmt = mysqli_prepare($conn, $sql);
 
@@ -48,7 +51,8 @@ function ivoteph_table_exists($conn, $table_name) {
     return $exists;
 }
 
-function ivoteph_column_exists($conn, $table_name, $column_name) {
+function ivoteph_column_exists($conn, $table_name, $column_name)
+{
     $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
 
     if ($table_name == '') {
@@ -73,7 +77,8 @@ function ivoteph_column_exists($conn, $table_name, $column_name) {
     return $exists;
 }
 
-function ivoteph_fetch_current_election($conn) {
+function ivoteph_fetch_current_election($conn)
+{
     if (!ivoteph_table_exists($conn, 'elections')) {
         return false;
     }
@@ -125,7 +130,6 @@ function ivoteph_fetch_current_election($conn) {
     return false;
 }
 
-/* Logged-in voter profile data */
 $profile_voter_id = isset($auth_voter_id) ? $auth_voter_id : $_SESSION['voter_id'];
 $profile_first_name = isset($auth_first_name) ? $auth_first_name : '';
 $profile_middle_name = '';
@@ -262,7 +266,6 @@ if (count($address_parts) > 0) {
     $profile_complete_address = implode(', ', $address_parts);
 }
 
-/* Results data */
 $results_rows = array();
 $total_votes = 0;
 $total_candidates = 0;
@@ -1179,7 +1182,1025 @@ for ($i = 0; $i < count($results_rows); $i++) {
                 padding: 12px 16px;
             }
         }
+
+        body.userPage .userMain {
+            width: calc(100% - 28px) !important;
+            max-width: none !important;
+        }
+
+        .resultsPowerBiSection {
+            padding: 14px !important;
+            margin-bottom: 18px !important;
+        }
+
+        .resultsPowerBiSection .sectionHeader {
+            margin-bottom: 10px !important;
+        }
+
+        .resultsPowerBiSection .sectionHeader h2 {
+            font-size: 24px !important;
+            margin-bottom: 2px !important;
+        }
+
+        .resultsPowerBiSection .sectionHeader p {
+            font-size: 13px !important;
+        }
+
+        .powerBiEmbedWrapper {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 190px);
+            min-height: 720px;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid #dce5f2;
+            background: #ffffff;
+            box-shadow: 0 12px 28px rgba(16, 24, 40, 0.08);
+        }
+
+        .powerBiEmbedWrapper iframe {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border: 0;
+        }
+
+        @media (max-width: 992px) {
+            body.userPage .userMain {
+                width: calc(100% - 18px) !important;
+            }
+
+            .resultsPowerBiSection {
+                padding: 10px !important;
+            }
+
+            .powerBiEmbedWrapper {
+                height: calc(100vh - 170px);
+                min-height: 640px;
+                border-radius: 16px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            body.userPage .userMain {
+                width: calc(100% - 10px) !important;
+            }
+
+            .resultsPowerBiSection {
+                padding: 8px !important;
+            }
+
+            .resultsPowerBiSection .sectionHeader h2 {
+                font-size: 20px !important;
+            }
+
+            .resultsPowerBiSection .sectionHeader p {
+                display: none !important;
+            }
+
+            .powerBiEmbedWrapper {
+                height: calc(100vh - 145px);
+                min-height: 560px;
+                border-radius: 14px;
+            }
+        }
     </style>
+
+    <style id="ivotephTopbarFinalCleanFix">
+        html,
+        body {
+            overflow-x: hidden !important;
+        }
+
+        body.userPage {
+            padding-top: 78px !important;
+        }
+
+        .userTopbar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 5000 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 10px 22px !important;
+            background: rgba(248, 250, 255, 0.97) !important;
+            border: 0 !important;
+            border-bottom: 1px solid rgba(210, 219, 235, 0.95) !important;
+            border-radius: 0 !important;
+            box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08) !important;
+            backdrop-filter: blur(16px) saturate(1.15) !important;
+            -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
+        }
+
+        .userTopbarInner {
+            width: 100% !important;
+            max-width: 1480px !important;
+            min-height: 52px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            display: grid !important;
+            grid-template-columns: auto minmax(0, 1fr) auto !important;
+            grid-template-areas: "brand nav profile" !important;
+            align-items: center !important;
+            gap: 14px !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .userTopbar::before,
+        .userTopbar::after,
+        .userTopbarInner::before,
+        .userTopbarInner::after {
+            content: none !important;
+            display: none !important;
+        }
+
+        .brandLink {
+            grid-area: brand !important;
+            justify-self: start !important;
+            align-self: center !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            width: auto !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        img.brandLogo,
+        .brandLogo {
+            display: block !important;
+            width: 80px !important;
+            max-width: 80px !important;
+            height: auto !important;
+            max-height: 42px !important;
+            object-fit: contain !important;
+            margin: 0 !important;
+            filter: none !important;
+        }
+
+        .topbarSearch,
+        .topbarSearch *,
+        .userTopbar .topbarSearch,
+        .userTopbar .input-group:has(.searchInput) {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+        }
+
+        .userNavBar {
+            grid-area: nav !important;
+            align-self: center !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+        }
+
+        .userNavBar::-webkit-scrollbar,
+        .userNavInner::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        .userNavInner {
+            width: 100% !important;
+            max-width: none !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scrollbar-width: none !important;
+        }
+
+        .userNavList {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            flex-wrap: nowrap !important;
+            gap: 7px !important;
+            width: max-content !important;
+            min-width: max-content !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            list-style: none !important;
+            overflow: visible !important;
+        }
+
+        .userNavList li {
+            list-style: none !important;
+            flex: 0 0 auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .userNavList a {
+            height: 40px !important;
+            min-height: 40px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 6px !important;
+            padding: 0 14px !important;
+            border-radius: 999px !important;
+            background: #f3f6fb !important;
+            border: 1px solid transparent !important;
+            color: #344054 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            line-height: 1 !important;
+            white-space: nowrap !important;
+            text-decoration: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .userNavList a i {
+            font-size: 12px !important;
+            color: currentColor !important;
+        }
+
+        .userNavList a:hover {
+            background: #e8f1ff !important;
+            color: #0646a8 !important;
+            transform: none !important;
+        }
+
+        .userNavList a.active {
+            background: #0b5ed7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 18px rgba(6, 70, 168, 0.18) !important;
+        }
+
+        .userChip {
+            grid-area: profile !important;
+            justify-self: end !important;
+            align-self: center !important;
+            height: 44px !important;
+            min-height: 44px !important;
+            max-width: 290px !important;
+            margin: 0 !important;
+            padding: 5px 12px 5px 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            border-radius: 999px !important;
+            background: #ffffff !important;
+            border: 1px solid #dce5f2 !important;
+            box-shadow: none !important;
+            color: #172033 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+        }
+
+        .userAvatarCircle {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
+            font-size: 12px !important;
+            background: #0b5ed7 !important;
+            color: #ffffff !important;
+        }
+
+        .userName {
+            font-size: 11px !important;
+            line-height: 1.05 !important;
+            max-width: 190px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+
+        .verifiedBadge {
+            font-size: 9px !important;
+            line-height: 1.05 !important;
+        }
+
+        .userMain {
+            padding-top: 22px !important;
+        }
+
+        .modal {
+            z-index: 7000 !important;
+        }
+
+        .modal-backdrop {
+            z-index: 6500 !important;
+        }
+
+        .modal-dialog,
+        #profileRequestModal .modal-dialog {
+            width: min(560px, calc(100vw - 28px)) !important;
+            max-width: min(560px, calc(100vw - 28px)) !important;
+            margin: 16px auto !important;
+        }
+
+        #profileModal .modal-dialog {
+            width: min(980px, calc(100vw - 28px)) !important;
+            max-width: min(980px, calc(100vw - 28px)) !important;
+            margin: 16px auto !important;
+        }
+
+        .modal-content,
+        .profileModalContent,
+        .ballotModalContent {
+            border-radius: 22px !important;
+            overflow: hidden !important;
+            max-height: calc(100vh - 32px) !important;
+        }
+
+        .modal-body,
+        .profileModalBody,
+        .requestModalBody {
+            overflow-y: auto !important;
+            max-height: calc(100vh - 190px) !important;
+        }
+
+        .profileModalHeader,
+        .ballotModalHeader {
+            padding: 18px !important;
+        }
+
+        .profileModalAvatar {
+            width: 58px !important;
+            height: 58px !important;
+            font-size: 20px !important;
+        }
+
+        .requestModalBody,
+        .profileModalBody {
+            padding: 18px !important;
+        }
+
+        .requestModalBody .form-control,
+        .requestModalBody .form-select,
+        .profileModalContent .form-control,
+        .profileModalContent .form-select {
+            min-height: 44px !important;
+            border-radius: 16px !important;
+        }
+
+        .requestModalBody textarea.form-control {
+            min-height: 110px !important;
+        }
+
+        .profileModalActions {
+            padding: 12px 18px !important;
+        }
+
+        @media (max-width: 980px) {
+            body.userPage {
+                padding-top: 116px !important;
+            }
+
+            .userTopbar {
+                padding: 9px 14px !important;
+            }
+
+            .userTopbarInner {
+                min-height: 92px !important;
+                grid-template-columns: auto 1fr auto !important;
+                grid-template-rows: auto auto !important;
+                grid-template-areas:
+                    "brand spacer profile"
+                    "nav nav nav" !important;
+                column-gap: 10px !important;
+                row-gap: 9px !important;
+            }
+
+            .brandLink {
+                grid-area: brand !important;
+            }
+
+            .userChip {
+                grid-area: profile !important;
+            }
+
+            .userNavBar {
+                grid-area: nav !important;
+            }
+
+            img.brandLogo,
+            .brandLogo {
+                width: 72px !important;
+                max-width: 72px !important;
+                max-height: 36px !important;
+            }
+
+            .userNavList {
+                gap: 6px !important;
+            }
+
+            .userNavList a {
+                height: 38px !important;
+                min-height: 38px !important;
+                padding: 0 12px !important;
+                font-size: 11.5px !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body.userPage {
+                padding-top: 106px !important;
+            }
+
+            .userTopbar {
+                padding: 8px 10px !important;
+            }
+
+            .userTopbarInner {
+                min-height: 88px !important;
+                row-gap: 8px !important;
+            }
+
+            img.brandLogo,
+            .brandLogo {
+                width: 62px !important;
+                max-width: 62px !important;
+                max-height: 32px !important;
+            }
+
+            .userChip {
+                width: 42px !important;
+                height: 42px !important;
+                min-height: 42px !important;
+                max-width: 42px !important;
+                padding: 4px !important;
+                border-radius: 999px !important;
+            }
+
+            .userAvatarCircle {
+                width: 32px !important;
+                height: 32px !important;
+                min-width: 32px !important;
+            }
+
+            .userMeta,
+            .userChip .fa-chevron-down {
+                display: none !important;
+            }
+
+            .userNavList a {
+                height: 36px !important;
+                min-height: 36px !important;
+                padding: 0 10px !important;
+                font-size: 11px !important;
+                gap: 5px !important;
+            }
+
+            .userNavList a i {
+                font-size: 11px !important;
+            }
+
+            .userMain {
+                width: calc(100% - 20px) !important;
+                padding-top: 16px !important;
+            }
+
+            .modal-dialog,
+            #profileModal .modal-dialog,
+            #profileRequestModal .modal-dialog {
+                width: calc(100vw - 20px) !important;
+                max-width: calc(100vw - 20px) !important;
+                margin: 10px auto !important;
+            }
+
+            .modal-content,
+            .profileModalContent,
+            .ballotModalContent {
+                border-radius: 18px !important;
+                max-height: calc(100vh - 20px) !important;
+            }
+
+            .modal-body,
+            .profileModalBody,
+            .requestModalBody {
+                max-height: calc(100vh - 170px) !important;
+                padding: 14px !important;
+            }
+        }
+    </style>
+
+    <style id="ivotephFinalTopbarFix">
+        :root {
+            --ivoteFixedTopbarHeight: 78px;
+        }
+
+        html,
+        body {
+            overflow-x: hidden !important;
+        }
+
+        body.userPage {
+            padding-top: var(--ivoteFixedTopbarHeight, 78px) !important;
+        }
+
+        .userTopbar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 99999 !important;
+            width: 100% !important;
+            min-height: 0 !important;
+            padding: 9px 18px !important;
+            margin: 0 !important;
+            background: rgba(248, 251, 255, 0.97) !important;
+            border: 0 !important;
+            border-bottom: 1px solid #dce5f2 !important;
+            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.08) !important;
+            border-radius: 0 !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            transform: none !important;
+        }
+
+        .userTopbar::before,
+        .userTopbar::after,
+        .userTopbarInner::before,
+        .userTopbarInner::after {
+            display: none !important;
+            content: none !important;
+        }
+
+        .userTopbarInner {
+            width: 100% !important;
+            max-width: 1480px !important;
+            min-height: 50px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            gap: 14px !important;
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            overflow: visible !important;
+            transform: none !important;
+        }
+
+        .brandLink,
+        .brandLogoLink,
+        .navbar-brand.brandLogoLink {
+            flex: 0 0 auto !important;
+            order: 1 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            width: auto !important;
+            min-width: 78px !important;
+            height: 50px !important;
+            min-height: 50px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .brandLogo,
+        img.brandLogo {
+            display: block !important;
+            width: 74px !important;
+            max-width: 74px !important;
+            height: auto !important;
+            max-height: 38px !important;
+            object-fit: contain !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            filter: none !important;
+            transform: none !important;
+        }
+
+        .topbarSearch,
+        .topbarSearch *,
+        .searchInput,
+        .form-control.searchInput {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            max-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+        }
+
+        .userNavBar {
+            flex: 1 1 auto !important;
+            order: 2 !important;
+            min-width: 0 !important;
+            width: auto !important;
+            max-width: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scrollbar-width: none !important;
+            -webkit-overflow-scrolling: touch !important;
+            transform: none !important;
+        }
+
+        .userNavBar::-webkit-scrollbar,
+        .userNavInner::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        .userNavInner {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scrollbar-width: none !important;
+        }
+
+        .userNavList {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            gap: 8px !important;
+            width: max-content !important;
+            min-width: max-content !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            list-style: none !important;
+            overflow: visible !important;
+        }
+
+        .userNavList li {
+            flex: 0 0 auto !important;
+            list-style: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .userNavList a {
+            height: 40px !important;
+            min-height: 40px !important;
+            padding: 0 14px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 7px !important;
+            border-radius: 999px !important;
+            background: #f2f5fb !important;
+            border: 0 !important;
+            color: #30394c !important;
+            font-size: 12.5px !important;
+            font-weight: 900 !important;
+            line-height: 1 !important;
+            white-space: nowrap !important;
+            text-decoration: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .userNavList a i {
+            font-size: 12.5px !important;
+        }
+
+        .userNavList a:hover {
+            background: #e8f1ff !important;
+            color: #0646a8 !important;
+        }
+
+        .userNavList a.active {
+            background: #0b5ed7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 18px rgba(6, 70, 168, 0.18) !important;
+        }
+
+        .userChip {
+            flex: 0 0 auto !important;
+            order: 3 !important;
+            align-self: center !important;
+            height: 44px !important;
+            min-height: 44px !important;
+            max-width: 285px !important;
+            padding: 5px 12px 5px 5px !important;
+            margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 9px !important;
+            border-radius: 999px !important;
+            background: #ffffff !important;
+            border: 1px solid #dce5f2 !important;
+            box-shadow: none !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            transform: none !important;
+        }
+
+        .userAvatarCircle {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            background: #0b5ed7 !important;
+            color: #ffffff !important;
+            font-size: 12px !important;
+            font-weight: 950 !important;
+        }
+
+        .userName {
+            font-size: 11.5px !important;
+            font-weight: 950 !important;
+            line-height: 1.1 !important;
+            color: #101828 !important;
+        }
+
+        .verifiedBadge {
+            font-size: 9.5px !important;
+            font-weight: 850 !important;
+            line-height: 1.1 !important;
+            color: #0b5ed7 !important;
+        }
+
+        .menuButton,
+        .sidebarOverlay,
+        .userSidebar,
+        #sidebar,
+        .sidebar,
+        .sidebarToggle,
+        .dashboardSidebarToggle {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        .userMain {
+            width: min(1480px, calc(100% - 44px)) !important;
+            margin: 0 auto !important;
+            padding-top: 22px !important;
+        }
+
+        .modal-dialog {
+            max-width: min(720px, calc(100vw - 24px)) !important;
+            margin: 12px auto !important;
+        }
+
+        .modal-dialog.modal-xl {
+            max-width: min(980px, calc(100vw - 24px)) !important;
+        }
+
+        .modal-content,
+        .profileModalContent,
+        .ballotModalContent {
+            border-radius: 22px !important;
+            max-height: calc(100vh - 24px) !important;
+            overflow: hidden !important;
+        }
+
+        .modal-body,
+        .profileModalBody,
+        .requestModalBody {
+            max-height: calc(100vh - 210px) !important;
+            overflow-y: auto !important;
+        }
+
+        @media (max-width: 1100px) {
+            .userTopbar {
+                padding: 8px 12px !important;
+            }
+
+            .userTopbarInner {
+                gap: 10px !important;
+            }
+
+            .brandLink,
+            .brandLogoLink,
+            .navbar-brand.brandLogoLink {
+                min-width: 68px !important;
+                height: 48px !important;
+                min-height: 48px !important;
+            }
+
+            .brandLogo,
+            img.brandLogo {
+                width: 64px !important;
+                max-width: 64px !important;
+                max-height: 34px !important;
+            }
+
+            .userNavList {
+                gap: 6px !important;
+            }
+
+            .userNavList a {
+                height: 38px !important;
+                min-height: 38px !important;
+                padding: 0 12px !important;
+                font-size: 12px !important;
+            }
+
+            .userNavList a i {
+                font-size: 12px !important;
+            }
+
+            .userChip {
+                max-width: 48px !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-height: 44px !important;
+                padding: 5px !important;
+            }
+
+            .userChip .userMeta,
+            .userChip .fa-chevron-down {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .userTopbar {
+                padding: 7px 8px !important;
+            }
+
+            .userTopbarInner {
+                min-height: 44px !important;
+                gap: 7px !important;
+            }
+
+            .brandLink,
+            .brandLogoLink,
+            .navbar-brand.brandLogoLink {
+                min-width: 56px !important;
+                height: 44px !important;
+                min-height: 44px !important;
+            }
+
+            .brandLogo,
+            img.brandLogo {
+                width: 54px !important;
+                max-width: 54px !important;
+                max-height: 28px !important;
+            }
+
+            .userNavList a {
+                height: 34px !important;
+                min-height: 34px !important;
+                padding: 0 10px !important;
+                font-size: 10.5px !important;
+                gap: 5px !important;
+            }
+
+            .userNavList a i {
+                font-size: 10.5px !important;
+            }
+
+            .userChip {
+                width: 38px !important;
+                height: 38px !important;
+                min-height: 38px !important;
+                padding: 3px !important;
+            }
+
+            .userAvatarCircle {
+                width: 30px !important;
+                height: 30px !important;
+                min-width: 30px !important;
+                font-size: 11px !important;
+            }
+
+            .userMain {
+                width: calc(100% - 20px) !important;
+                padding-top: 14px !important;
+            }
+
+            .modal-dialog,
+            .modal-dialog.modal-xl {
+                max-width: calc(100vw - 16px) !important;
+                margin: 8px auto !important;
+            }
+
+            .modal-content,
+            .profileModalContent,
+            .ballotModalContent {
+                border-radius: 18px !important;
+            }
+
+            .modal-body,
+            .profileModalBody,
+            .requestModalBody {
+                max-height: calc(100vh - 180px) !important;
+                overflow-y: auto !important;
+            }
+        }
+    </style>
+    <style id="ivoteModalOverNavbarHardFix">
+        body.userPage .userTopbar,
+        body.userPage>header.userTopbar,
+        html body.userPage>header.userTopbar {
+            z-index: 1000 !important;
+        }
+
+        body.userPage.modal-open .userTopbar,
+        body.userPage.ivoteModalOpen .userTopbar,
+        body.userPage.modal-open>header.userTopbar,
+        html body.userPage.modal-open>header.userTopbar {
+            z-index: 1 !important;
+        }
+
+        body.userPage .modal-backdrop,
+        body.userPage .modal-backdrop.show {
+            z-index: 999998 !important;
+        }
+
+        body.userPage .modal {
+            z-index: 999999 !important;
+        }
+
+        body.userPage .modal-dialog {
+            position: relative !important;
+            z-index: 1000000 !important;
+        }
+
+        body.userPage .modal-content,
+        body.userPage .profileModalContent,
+        body.userPage .ballotModalContent {
+            max-height: calc(100vh - 32px) !important;
+            overflow: hidden !important;
+            border-radius: 22px !important;
+            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35) !important;
+        }
+
+        body.userPage .modal-body,
+        body.userPage .profileModalBody,
+        body.userPage .requestModalBody {
+            max-height: calc(100vh - 220px) !important;
+            overflow-y: auto !important;
+        }
+
+        @media (max-width: 576px) {
+            body.userPage .modal-dialog {
+                max-width: calc(100vw - 16px) !important;
+                margin: 8px auto !important;
+            }
+
+            body.userPage .modal-content,
+            body.userPage .profileModalContent,
+            body.userPage .ballotModalContent {
+                max-height: calc(100vh - 16px) !important;
+                border-radius: 18px !important;
+            }
+
+            body.userPage .modal-body,
+            body.userPage .profileModalBody,
+            body.userPage .requestModalBody {
+                max-height: calc(100vh - 190px) !important;
+            }
+        }
+    </style>
+
 </head>
 
 <body class="userPage">
@@ -1227,13 +2248,6 @@ for ($i = 0; $i < count($results_rows); $i++) {
                         </li>
 
                         <li>
-                            <a href="myballot.php">
-                                <i class="fa-solid fa-file-signature"></i>
-                                My Ballot
-                            </a>
-                        </li>
-
-                        <li>
                             <a href="results.php" class="active">
                                 <i class="fa-solid fa-chart-simple"></i>
                                 Results
@@ -1249,16 +2263,6 @@ for ($i = 0; $i < count($results_rows); $i++) {
                     </ul>
                 </div>
             </nav>
-
-            <div class="topbarSearch">
-                <div class="input-group">
-                    <span class="input-group-text">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </span>
-                    <input type="search" class="form-control searchInput" placeholder="Search candidates, voting info, or results">
-                </div>
-            </div>
-
             <button type="button" class="userChip border-0" data-bs-toggle="modal" data-bs-target="#profileModal">
                 <span class="userAvatarCircle"><?php echo ivoteph_h($profile_initials); ?></span>
                 <span class="userMeta">
@@ -1274,112 +2278,25 @@ for ($i = 0; $i < count($results_rows); $i++) {
     </header>
 
     <main class="userMain">
-        <section class="resultsHero userCard">
-            <div class="heroEyebrow">
-                <i class="fa-solid fa-chart-simple"></i>
-                Election Results
-            </div>
-
-            <h1 class="heroTitle">Results Dashboard</h1>
-
-            <p class="heroSubtitle">
-                View aggregate election results. This page shows public result summaries only and does not expose
-                individual voter identities, emails, or ballot ownership.
-            </p>
-        </section>
-
-        <section class="summaryGrid">
-            <div class="summaryCard userCard">
-                <span>Election</span>
-                <strong><?php echo ivoteph_h($current_election_name); ?></strong>
-            </div>
-
-            <div class="summaryCard userCard">
-                <span>Total Votes Counted</span>
-                <strong><?php echo ivoteph_h($total_votes); ?></strong>
-            </div>
-
-            <div class="summaryCard userCard">
-                <span>Candidates</span>
-                <strong><?php echo ivoteph_h($total_candidates); ?></strong>
-            </div>
-
-            <div class="summaryCard userCard">
-                <span>Positions</span>
-                <strong><?php echo ivoteph_h($total_positions); ?></strong>
-            </div>
-        </section>
-
-        <section class="sectionCard userCard">
+        <section class="sectionCard userCard resultsPowerBiSection">
             <div class="sectionHeader">
                 <div>
-                    <h2>Official Result Summary</h2>
+                    <h2>iVotePH Election Results Dashboard</h2>
                     <p class="text-muted mb-0">
-                        Results are grouped by position and ranked by vote count.
+                        Interactive Power BI dashboard showing election results, voter distribution, and anomaly
+                        monitoring.
                     </p>
                 </div>
             </div>
 
-            <?php if (!$results_ready || count($position_groups) < 1) { ?>
-                <div class="emptyState">
-                    <i class="fa-solid fa-chart-simple"></i>
-                    <h3>No results available yet</h3>
-                    <p class="text-muted mb-0">
-                        Add candidates and vote records first, or open an election and submit ballots from the voting page.
-                    </p>
-                </div>
-            <?php } else { ?>
-                <?php foreach ($position_groups as $position_name => $rows) { ?>
-                    <?php
-                    $position_total = 0;
-
-                    for ($i = 0; $i < count($rows); $i++) {
-                        $position_total += (int) $rows[$i]['vote_count'];
-                    }
-                    ?>
-
-                    <div class="positionResult">
-                        <div class="positionTitle">
-                            <i class="fa-solid fa-user-tie"></i>
-                            <?php echo ivoteph_h($position_name); ?>
-                        </div>
-
-                        <?php for ($i = 0; $i < count($rows); $i++) { ?>
-                            <?php
-                            $candidate_vote_count = (int) $rows[$i]['vote_count'];
-                            $percent = 0;
-
-                            if ($position_total > 0) {
-                                $percent = round(($candidate_vote_count / $position_total) * 100, 1);
-                            }
-                            ?>
-
-                            <div class="resultRow">
-                                <div>
-                                    <div class="candidateName">
-                                        <?php echo ivoteph_h($rows[$i]['full_name']); ?>
-                                    </div>
-
-                                    <div class="partyName">
-                                        <?php echo ivoteph_h($rows[$i]['political_party']); ?>
-                                    </div>
-
-                                    <div class="progress">
-                                        <div class="progress-bar" role="progressbar" style="width: <?php echo ivoteph_h($percent); ?>%;" aria-valuenow="<?php echo ivoteph_h($percent); ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-
-                                <div class="voteCount">
-                                    <?php echo ivoteph_h($candidate_vote_count); ?> votes
-                                    <br>
-                                    <small class="text-muted"><?php echo ivoteph_h($percent); ?>%</small>
-                                </div>
-                            </div>
-                        <?php } ?>
-                    </div>
-                <?php } ?>
-            <?php } ?>
+            <div class="powerBiEmbedWrapper">
+                <iframe title="iVotePH Election Results Dashboard"
+                    src="https://app.powerbi.com/view?r=eyJrIjoiYmVmNGM1Y2MtNDAxMy00OTQxLWIwYTMtYzRhYTE1YjViYjQ3IiwidCI6IjRkYTk4NTcxLWRjZWEtNDgzOS04ZmIxLTBiZGQ1ZGM5NjlmOSIsImMiOjEwfQ%3D%3D"
+                    frameborder="0" allowfullscreen="true">
+                </iframe>
+            </div>
         </section>
+
     </main>
 
     <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
@@ -1535,7 +2452,8 @@ for ($i = 0; $i < count($results_rows); $i++) {
         </div>
     </div>
 
-    <div class="modal fade" id="profileRequestModal" tabindex="-1" aria-labelledby="profileRequestModalLabel" aria-hidden="true">
+    <div class="modal fade" id="profileRequestModal" tabindex="-1" aria-labelledby="profileRequestModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content profileModalContent">
                 <div class="profileModalHeader">
@@ -1571,7 +2489,8 @@ for ($i = 0; $i < count($results_rows); $i++) {
 
                         <div class="mb-3">
                             <label for="requestMessage" class="form-label">Reason / Correct Information</label>
-                            <textarea class="form-control" id="requestMessage" rows="4" required placeholder="Example: My registered last name is misspelled. It should be Dela Cruz."></textarea>
+                            <textarea class="form-control" id="requestMessage" rows="4" required
+                                placeholder="Example: My registered last name is misspelled. It should be Dela Cruz."></textarea>
                         </div>
 
                         <div class="d-grid gap-2">
@@ -1640,6 +2559,34 @@ for ($i = 0; $i < count($results_rows); $i++) {
             window.location.href = 'logout.php';
         }
     </script>
+
+    <script id="ivotephFinalTopbarOffset">
+        function ivotephUpdateFixedTopbarOffset() {
+            var topbar = document.querySelector('.userTopbar');
+            if (!topbar) {
+                return;
+            }
+            document.documentElement.style.setProperty('--ivoteFixedTopbarHeight', topbar.offsetHeight + 'px');
+        }
+
+        window.addEventListener('load', ivotephUpdateFixedTopbarOffset);
+        window.addEventListener('resize', ivotephUpdateFixedTopbarOffset);
+        setTimeout(ivotephUpdateFixedTopbarOffset, 50);
+    </script>
+    <script>
+        document.addEventListener('show.bs.modal', function () {
+            document.body.classList.add('ivoteModalOpen');
+        });
+
+        document.addEventListener('hidden.bs.modal', function () {
+            var openModals = document.querySelectorAll('.modal.show');
+
+            if (openModals.length === 0) {
+                document.body.classList.remove('ivoteModalOpen');
+            }
+        });
+    </script>
+
 </body>
 
 </html>
