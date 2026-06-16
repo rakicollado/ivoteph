@@ -2434,7 +2434,91 @@ if (count($address_parts) > 0) {
             }
         });
     </script>
+    <script>
+        window.submitProfileChangeRequest = function (event) {
+            event.preventDefault();
 
+            var form = document.getElementById('profileChangeRequestForm');
+            var requestField = document.getElementById('requestField');
+            var requestMessage = document.getElementById('requestMessage');
+
+            if (!form || !requestField || !requestMessage) {
+                alert('Profile request form was not found.');
+                return false;
+            }
+
+            if (!requestField.value || !requestMessage.value.trim()) {
+                alert('Please select the information to change and enter your correction details.');
+                return false;
+            }
+
+            var submitButton = form.querySelector('button[type="submit"]');
+            var originalButtonText = '';
+
+            if (submitButton) {
+                originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Submitting...';
+            }
+
+            var formData = new FormData();
+            formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
+            formData.append('request_field', requestField.value);
+            formData.append('request_message', requestMessage.value);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'submit_profile_request.php', true);
+
+            xhr.onload = function () {
+                var response;
+
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+
+                try {
+                    response = JSON.parse(xhr.responseText);
+                } catch (error) {
+                    alert('Invalid server response. Check submit_profile_request.php.');
+                    return;
+                }
+
+                if (response.success) {
+                    form.reset();
+
+                    var requestModalElement = document.getElementById('profileRequestModal');
+
+                    if (typeof ivoteCloseModal === 'function') {
+                        ivoteCloseModal('profileRequestModal');
+                    } else if (window.bootstrap && requestModalElement) {
+                        var requestModal = bootstrap.Modal.getInstance(requestModalElement);
+
+                        if (requestModal) {
+                            requestModal.hide();
+                        }
+                    }
+
+                    alert(response.message);
+                } else {
+                    alert(response.message);
+                }
+            };
+
+            xhr.onerror = function () {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+
+                alert('Connection error. Please try again.');
+            };
+
+            xhr.send(formData);
+
+            return false;
+        };
+    </script>
 </body>
 
 </html>

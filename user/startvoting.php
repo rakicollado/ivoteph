@@ -1238,6 +1238,123 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
         }
     }
 }
+
+/* iVotePH profile request notification data */
+if (!function_exists('ivoteph_profile_request_badge_class')) {
+    function ivoteph_profile_request_badge_class($status)
+    {
+        if ($status === 'Approved') {
+            return 'success';
+        }
+
+        if ($status === 'Rejected') {
+            return 'danger';
+        }
+
+        if ($status === 'Resolved') {
+            return 'primary';
+        }
+
+        return 'warning';
+    }
+}
+
+if (!function_exists('ivoteph_profile_request_table_exists')) {
+    function ivoteph_profile_request_table_exists($conn, $table_name)
+    {
+        $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
+
+        if ($table_name === '') {
+            return false;
+        }
+
+        $table_name_sql = mysqli_real_escape_string($conn, $table_name);
+        $result = mysqli_query($conn, "SHOW TABLES LIKE '" . $table_name_sql . "'");
+
+        if ($result && mysqli_num_rows($result) > 0) {
+            mysqli_free_result($result);
+            return true;
+        }
+
+        if ($result) {
+            mysqli_free_result($result);
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('ivoteph_profile_request_date')) {
+    function ivoteph_profile_request_date($value)
+    {
+        if ($value === null || $value === '' || $value === '0000-00-00 00:00:00') {
+            return 'N/A';
+        }
+
+        $time = strtotime($value);
+
+        if (!$time) {
+            return 'N/A';
+        }
+
+        return date('M d, Y h:i A', $time);
+    }
+}
+
+$profile_notifications = array();
+$profile_notification_count = 0;
+
+if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_voter_id) !== '' && ivoteph_profile_request_table_exists($conn, 'profile_change_requests')) {
+    $stmt_profile_notifications = mysqli_prepare($conn, "
+        SELECT
+            request_id,
+            request_field,
+            request_message,
+            request_status,
+            admin_response,
+            created_at,
+            reviewed_at
+        FROM profile_change_requests
+        WHERE voter_id = ?
+        ORDER BY request_id DESC
+        LIMIT 10
+    ");
+
+    if ($stmt_profile_notifications) {
+        mysqli_stmt_bind_param($stmt_profile_notifications, 's', $profile_voter_id);
+        mysqli_stmt_execute($stmt_profile_notifications);
+        mysqli_stmt_bind_result(
+            $stmt_profile_notifications,
+            $notif_request_id,
+            $notif_request_field,
+            $notif_request_message,
+            $notif_request_status,
+            $notif_admin_response,
+            $notif_created_at,
+            $notif_reviewed_at
+        );
+
+        while (mysqli_stmt_fetch($stmt_profile_notifications)) {
+            $profile_notifications[] = array(
+                'request_id' => $notif_request_id,
+                'request_field' => $notif_request_field,
+                'request_message' => $notif_request_message,
+                'request_status' => $notif_request_status,
+                'admin_response' => $notif_admin_response,
+                'created_at' => $notif_created_at,
+                'reviewed_at' => $notif_reviewed_at
+            );
+
+            if ($notif_request_status === 'Approved' || $notif_request_status === 'Rejected' || $notif_request_status === 'Resolved') {
+                $profile_notification_count++;
+            }
+        }
+
+        mysqli_stmt_close($stmt_profile_notifications);
+    }
+}
+/* end iVotePH profile request notification data */
+
 ?>
 <!doctype html>
 <html lang="en">
@@ -3108,6 +3225,159 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
             }
         }
     </style>
+    <style id="ivoteUserModalHardFix">
+        body.userPage.modal-open,
+        body.userPage.ivoteModalOpen {
+            overflow: hidden !important;
+            padding-right: 0 !important;
+        }
+
+        body.userPage .modal-backdrop,
+        body.userPage .modal-backdrop.show {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
+        }
+
+        body.userPage .modal {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 2147483000 !important;
+            padding: 18px !important;
+            background: rgba(15, 23, 42, 0.62) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            pointer-events: auto !important;
+        }
+
+        body.userPage .modal.show {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        body.userPage .modal-dialog {
+            position: relative !important;
+            z-index: 2147483001 !important;
+            width: 100% !important;
+            margin: auto !important;
+            pointer-events: auto !important;
+            transform: none !important;
+        }
+
+        body.userPage .modal-content,
+        body.userPage .profileModalContent,
+        body.userPage .ballotModalContent {
+            position: relative !important;
+            z-index: 2147483002 !important;
+            pointer-events: auto !important;
+            background: #ffffff !important;
+            opacity: 1 !important;
+        }
+
+        body.userPage .modal-content *,
+        body.userPage .profileModalContent *,
+        body.userPage .ballotModalContent * {
+            pointer-events: auto !important;
+        }
+
+        body.userPage.modal-open .userTopbar,
+        body.userPage.ivoteModalOpen .userTopbar {
+            z-index: 1 !important;
+        }
+
+        #ivoteNoticeOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(15, 23, 42, 0.62);
+        }
+
+        #ivoteNoticeOverlay.show {
+            display: flex;
+        }
+
+        .ivoteNoticeBox {
+            width: min(520px, 100%);
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35);
+            animation: ivoteNoticePop 0.18s ease-out;
+        }
+
+        .ivoteNoticeHeader {
+            padding: 22px 24px;
+            background: linear-gradient(135deg, #0647b8, #0b63e5);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .ivoteNoticeHeader i {
+            width: 46px;
+            height: 46px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.18);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .ivoteNoticeHeader h3 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 950;
+        }
+
+        .ivoteNoticeBody {
+            padding: 24px;
+            color: #344054;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .ivoteNoticeFooter {
+            padding: 0 24px 24px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .ivoteNoticeBtn {
+            border: 0;
+            border-radius: 999px;
+            background: #0647b8;
+            color: #ffffff;
+            font-weight: 950;
+            padding: 13px 28px;
+            min-width: 120px;
+            box-shadow: 0 12px 26px rgba(6, 71, 184, 0.28);
+        }
+
+        .ivoteNoticeBtn:hover {
+            background: #033587;
+        }
+
+        @keyframes ivoteNoticePop {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+    </style>
 </head>
 
 <body class="userPage">
@@ -3136,6 +3406,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
                     </ul>
                 </div>
             </nav>
+            <button type="button" class="profileNotifBtn" data-bs-toggle="modal" data-bs-target="#profileNotificationModal" title="Profile request notifications">
+                <i class="fa-solid fa-bell"></i>
+                <?php if (isset($profile_notification_count) && $profile_notification_count > 0) { ?>
+                    <span><?php echo number_format($profile_notification_count); ?></span>
+                <?php } ?>
+            </button>
+
             <button type="button" class="userChip border-0" data-bs-toggle="modal" data-bs-target="#profileModal">
                 <span class="userAvatarCircle"><?php echo ivoteph_h($profile_initials); ?></span>
                 <span class="userMeta">
@@ -3282,7 +3559,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
                                                     <h4 class="candidateVoteName"><?php echo ivoteph_h($candidate['full_name']); ?>
                                                     </h4>
                                                     <p class="candidateVoteParty">
-                                                        <?php echo ivoteph_h($candidate['political_party']); ?></p>
+                                                        <?php echo ivoteph_h($candidate['political_party']); ?>
+                                                    </p>
                                                     <span
                                                         class="candidateVoteScope"><?php echo ivoteph_h(ivoteph_candidate_jurisdiction_label($candidate)); ?></span>
                                                 </div>
@@ -3425,7 +3703,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
                                             </ol>
                                         <?php } else { ?>
                                             <div class="ballotSingleCandidate">
-                                                <?php echo ivoteph_h($submitted_position['candidates'][0]); ?></div>
+                                                <?php echo ivoteph_h($submitted_position['candidates'][0]); ?>
+                                            </div>
                                         <?php } ?>
                                     </div>
                                 <?php } ?>
@@ -3490,7 +3769,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
                         <div class="profileFullItem"><span>Birth
                                 Date</span><strong><?php echo ivoteph_h($profile_birth_date_display); ?></strong></div>
                         <div class="profileFullItem">
-                            <span>Sex</span><strong><?php echo ivoteph_h($profile_sex); ?></strong></div>
+                            <span>Sex</span><strong><?php echo ivoteph_h($profile_sex); ?></strong>
+                        </div>
                     </div>
 
                     <div class="profileSectionTitle"><i class="fa-solid fa-address-book"></i>Contact Information</div>
@@ -3506,16 +3786,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
 
                     <div class="profileFullGrid threeCols">
                         <div class="profileFullItem">
-                            <span>Region</span><strong><?php echo ivoteph_h($profile_region); ?></strong></div>
+                            <span>Region</span><strong><?php echo ivoteph_h($profile_region); ?></strong>
+                        </div>
                         <div class="profileFullItem">
-                            <span>Province</span><strong><?php echo ivoteph_h($profile_province); ?></strong></div>
+                            <span>Province</span><strong><?php echo ivoteph_h($profile_province); ?></strong>
+                        </div>
                         <div class="profileFullItem"><span>City /
                                 Municipality</span><strong><?php echo ivoteph_h($profile_city_municipality); ?></strong>
                         </div>
                         <div class="profileFullItem">
-                            <span>Barangay</span><strong><?php echo ivoteph_h($profile_barangay); ?></strong></div>
+                            <span>Barangay</span><strong><?php echo ivoteph_h($profile_barangay); ?></strong>
+                        </div>
                         <div class="profileFullItem">
-                            <span>Country</span><strong><?php echo ivoteph_h($profile_country); ?></strong></div>
+                            <span>Country</span><strong><?php echo ivoteph_h($profile_country); ?></strong>
+                        </div>
                         <div class="profileFullItem profileFullWide"><span>Complete
                                 Address</span><strong><?php echo ivoteph_h($profile_complete_address); ?></strong></div>
                     </div>
@@ -3550,10 +3834,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
                         Submit a request to the admin if your registered name or personal details need correction.
                     </div>
 
-                    <form id="profileChangeRequestForm" onsubmit="submitProfileChangeRequest(event)">
+                    <form id="profileChangeRequestForm" method="post" action="submit_profile_request.php" onsubmit="submitProfileChangeRequest(event)">
                         <div class="mb-3">
                             <label for="requestField" class="form-label">Information to change</label>
-                            <select class="form-select" id="requestField" required>
+                            <select class="form-select" id="requestField" name="request_field" required>
                                 <option value="">Select information</option>
                                 <option value="Full Name">Full Name</option>
                                 <option value="Email Address">Email Address</option>
@@ -3567,7 +3851,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
 
                         <div class="mb-3">
                             <label for="requestMessage" class="form-label">Reason / Correct Information</label>
-                            <textarea class="form-control" id="requestMessage" rows="4" required
+                            <textarea class="form-control" id="requestMessage" name="request_message" rows="4" required
                                 placeholder="Example: My registered last name is misspelled."></textarea>
                         </div>
 
@@ -3588,7 +3872,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
     <footer class="footer">
         <div>© 2026 iVotePH. Secure. Accessible. Transparent.</div>
     </footer>
+    <div id="ivoteNoticeOverlay">
+        <div class="ivoteNoticeBox">
+            <div class="ivoteNoticeHeader">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <h3 id="ivoteNoticeTitle">Action Needed</h3>
+            </div>
 
+            <div class="ivoteNoticeBody" id="ivoteNoticeMessage">
+                Please complete your ballot before submitting.
+            </div>
+
+            <div class="ivoteNoticeFooter">
+                <button type="button" class="ivoteNoticeBtn" onclick="closeIvoteNotice()">Okay</button>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
@@ -3755,6 +4054,982 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ballot'])) {
             }
         });
     </script>
+    <style>
+        .ivoteSystemAlertOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999999;
+            background: rgba(15, 23, 42, 0.62);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
+
+        .ivoteSystemAlertOverlay.show {
+            display: flex;
+        }
+
+        .ivoteSystemAlertBox {
+            width: min(520px, 100%);
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35);
+            overflow: hidden;
+            animation: ivoteAlertPop 0.18s ease-out;
+        }
+
+        .ivoteSystemAlertHeader {
+            background: linear-gradient(135deg, #0647b8, #0b63e5);
+            color: #ffffff;
+            padding: 22px 24px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .ivoteSystemAlertIcon {
+            width: 46px;
+            height: 46px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.18);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .ivoteSystemAlertHeader h3 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 950;
+            letter-spacing: -0.03em;
+        }
+
+        .ivoteSystemAlertBody {
+            padding: 24px;
+            color: #344054;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .ivoteSystemAlertFooter {
+            padding: 0 24px 24px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .ivoteSystemAlertBtn {
+            border: 0;
+            border-radius: 999px;
+            background: #0647b8;
+            color: #ffffff;
+            font-weight: 950;
+            padding: 13px 28px;
+            min-width: 120px;
+            box-shadow: 0 12px 26px rgba(6, 71, 184, 0.28);
+        }
+
+        .ivoteSystemAlertBtn:hover {
+            background: #033587;
+        }
+
+        @keyframes ivoteAlertPop {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .ivoteSystemAlertHeader {
+                padding: 18px;
+            }
+
+            .ivoteSystemAlertBody {
+                padding: 20px;
+            }
+
+            .ivoteSystemAlertFooter {
+                padding: 0 20px 20px;
+            }
+
+            .ivoteSystemAlertHeader h3 {
+                font-size: 19px;
+            }
+        }
+    </style>
+
+    <div class="ivoteSystemAlertOverlay" id="ivoteSystemAlertOverlay">
+        <div class="ivoteSystemAlertBox">
+            <div class="ivoteSystemAlertHeader">
+                <div class="ivoteSystemAlertIcon">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 id="ivoteSystemAlertTitle">Notice</h3>
+                </div>
+            </div>
+
+            <div class="ivoteSystemAlertBody" id="ivoteSystemAlertMessage">
+                Message here.
+            </div>
+
+            <div class="ivoteSystemAlertFooter">
+                <button type="button" class="ivoteSystemAlertBtn" onclick="closeIvoteSystemAlert()">
+                    Okay
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style id="ivoteFinalModalClickFix">
+        body.userPage.modal-open,
+        body.userPage.ivoteModalOpen {
+            overflow: hidden !important;
+            padding-right: 0 !important;
+        }
+
+        body.userPage .modal-backdrop,
+        body.userPage .modal-backdrop.show {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            z-index: -9999 !important;
+        }
+
+        body.userPage .modal {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 2147483000 !important;
+            padding: 18px !important;
+            background: rgba(15, 23, 42, 0.62) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+        }
+
+        body.userPage .modal:not(.show) {
+            display: none !important;
+        }
+
+        body.userPage .modal.show {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        body.userPage .modal-dialog {
+            position: relative !important;
+            z-index: 2147483001 !important;
+            width: 100% !important;
+            margin: auto !important;
+            pointer-events: auto !important;
+            transform: none !important;
+        }
+
+        body.userPage #ballotConfirmModal .modal-dialog,
+        body.userPage #submittedBallotModal .modal-dialog {
+            max-width: min(980px, calc(100vw - 24px)) !important;
+        }
+
+        body.userPage #profileModal .modal-dialog {
+            max-width: min(980px, calc(100vw - 24px)) !important;
+        }
+
+        body.userPage #profileRequestModal .modal-dialog {
+            max-width: min(560px, calc(100vw - 24px)) !important;
+        }
+
+        body.userPage .modal-content,
+        body.userPage .profileModalContent,
+        body.userPage .ballotModalContent {
+            position: relative !important;
+            z-index: 2147483002 !important;
+            pointer-events: auto !important;
+            background: #ffffff !important;
+            opacity: 1 !important;
+            filter: none !important;
+            max-height: calc(100vh - 36px) !important;
+            overflow: hidden !important;
+            border-radius: 22px !important;
+            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35) !important;
+        }
+
+        body.userPage .modal-content *,
+        body.userPage .profileModalContent *,
+        body.userPage .ballotModalContent * {
+            pointer-events: auto !important;
+            user-select: auto !important;
+        }
+
+        body.userPage .modal-body,
+        body.userPage .profileModalBody,
+        body.userPage .requestModalBody {
+            max-height: calc(100vh - 220px) !important;
+            overflow-y: auto !important;
+        }
+
+        body.userPage.modal-open .userTopbar,
+        body.userPage.ivoteModalOpen .userTopbar {
+            z-index: 1 !important;
+        }
+
+        #ivoteNoticeOverlay {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 2147483100 !important;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(15, 23, 42, 0.62);
+        }
+
+        #ivoteNoticeOverlay.show {
+            display: flex !important;
+        }
+
+        .ivoteNoticeBox {
+            width: min(520px, 100%);
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35);
+        }
+
+        .ivoteNoticeHeader {
+            padding: 22px 24px;
+            background: linear-gradient(135deg, #0647b8, #0b63e5);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .ivoteNoticeHeader i {
+            width: 46px;
+            height: 46px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.18);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .ivoteNoticeHeader h3 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 950;
+        }
+
+        .ivoteNoticeBody {
+            padding: 24px;
+            color: #344054;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .ivoteNoticeFooter {
+            padding: 0 24px 24px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .ivoteNoticeBtn {
+            border: 0;
+            border-radius: 999px;
+            background: #0647b8;
+            color: #ffffff;
+            font-weight: 950;
+            padding: 13px 28px;
+            min-width: 120px;
+            box-shadow: 0 12px 26px rgba(6, 71, 184, 0.28);
+        }
+
+        .ivoteNoticeBtn:hover {
+            background: #033587;
+        }
+
+        @media (max-width: 576px) {
+            body.userPage .modal {
+                padding: 8px !important;
+            }
+
+            body.userPage .modal-content,
+            body.userPage .profileModalContent,
+            body.userPage .ballotModalContent {
+                max-height: calc(100vh - 16px) !important;
+                border-radius: 18px !important;
+            }
+
+            body.userPage .modal-body,
+            body.userPage .profileModalBody,
+            body.userPage .requestModalBody {
+                max-height: calc(100vh - 190px) !important;
+            }
+        }
+    </style>
+
+    <script id="ivoteFinalModalClickFixScript">
+        (function () {
+            function removeBootstrapBackdrops() {
+                var backdrops = document.querySelectorAll('.modal-backdrop');
+
+                for (var i = 0; i < backdrops.length; i++) {
+                    backdrops[i].parentNode.removeChild(backdrops[i]);
+                }
+
+                document.body.style.paddingRight = '';
+            }
+
+            function getModalElement(modalTarget) {
+                if (!modalTarget) {
+                    return null;
+                }
+
+                if (typeof modalTarget === 'string') {
+                    return document.getElementById(modalTarget.replace('#', ''));
+                }
+
+                return modalTarget;
+            }
+
+            function openIvoteModal(modalTarget) {
+                var modal = getModalElement(modalTarget);
+
+                if (!modal) {
+                    return;
+                }
+
+                removeBootstrapBackdrops();
+
+                var openModals = document.querySelectorAll('.modal.show');
+
+                for (var i = 0; i < openModals.length; i++) {
+                    if (openModals[i] !== modal) {
+                        closeIvoteModal(openModals[i], false);
+                    }
+                }
+
+                modal.classList.add('show');
+                modal.removeAttribute('aria-hidden');
+                modal.setAttribute('aria-modal', 'true');
+                modal.setAttribute('role', 'dialog');
+                modal.style.display = 'flex';
+
+                document.body.classList.add('modal-open');
+                document.body.classList.add('ivoteModalOpen');
+                document.body.style.overflow = 'hidden';
+
+                setTimeout(function () {
+                    var focusable = modal.querySelector('select, input, textarea, button, a[href]');
+
+                    if (focusable) {
+                        focusable.focus({ preventScroll: true });
+                    }
+                }, 30);
+            }
+
+            function closeIvoteModal(modalTarget, restoreBody) {
+                var modal = getModalElement(modalTarget);
+
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.remove('show');
+                modal.setAttribute('aria-hidden', 'true');
+                modal.removeAttribute('aria-modal');
+                modal.style.display = 'none';
+
+                removeBootstrapBackdrops();
+
+                if (restoreBody !== false && document.querySelectorAll('.modal.show').length === 0) {
+                    document.body.classList.remove('modal-open');
+                    document.body.classList.remove('ivoteModalOpen');
+                    document.body.style.overflow = '';
+                }
+            }
+
+            function ensureNoticeOverlay() {
+                var existing = document.getElementById('ivoteNoticeOverlay');
+
+                if (existing) {
+                    return existing;
+                }
+
+                var overlay = document.createElement('div');
+                overlay.id = 'ivoteNoticeOverlay';
+                overlay.innerHTML =
+                    '<div class="ivoteNoticeBox">' +
+                    '<div class="ivoteNoticeHeader">' +
+                    '<i class="fa-solid fa-circle-exclamation"></i>' +
+                    '<h3 id="ivoteNoticeTitle">Action Needed</h3>' +
+                    '</div>' +
+                    '<div class="ivoteNoticeBody" id="ivoteNoticeMessage">Please complete the required action.</div>' +
+                    '<div class="ivoteNoticeFooter">' +
+                    '<button type="button" class="ivoteNoticeBtn" onclick="closeIvoteNotice()">Okay</button>' +
+                    '</div>' +
+                    '</div>';
+
+                document.body.appendChild(overlay);
+                return overlay;
+            }
+
+            window.showIvoteNotice = function (message, title) {
+                var overlay = ensureNoticeOverlay();
+                var titleBox = document.getElementById('ivoteNoticeTitle');
+                var messageBox = document.getElementById('ivoteNoticeMessage');
+
+                titleBox.textContent = title || 'Action Needed';
+                messageBox.textContent = message || 'Please complete the required action.';
+
+                overlay.classList.add('show');
+                document.body.classList.add('ivoteModalOpen');
+            };
+
+            window.closeIvoteNotice = function () {
+                var overlay = document.getElementById('ivoteNoticeOverlay');
+
+                if (overlay) {
+                    overlay.classList.remove('show');
+                }
+
+                if (document.querySelectorAll('.modal.show').length === 0) {
+                    document.body.classList.remove('modal-open');
+                    document.body.classList.remove('ivoteModalOpen');
+                    document.body.style.overflow = '';
+                }
+            };
+
+            window.alert = function (message) {
+                showIvoteNotice(message, 'Action Needed');
+            };
+
+            window.ivoteOpenModal = openIvoteModal;
+            window.ivoteCloseModal = closeIvoteModal;
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function getBallotValidationData() {
+                var form = document.getElementById('voteForm');
+                var data = {
+                    form: form,
+                    totalChoices: 0,
+                    missingPositions: [],
+                    invalidMessage: '',
+                    previewHtml: ''
+                };
+
+                if (!form) {
+                    data.invalidMessage = 'Voting form was not found.';
+                    return data;
+                }
+
+                var positionBlocks = form.querySelectorAll('.positionBlock');
+
+                for (var i = 0; i < positionBlocks.length; i++) {
+                    var block = positionBlocks[i];
+                    var positionName = block.getAttribute('data-position-title') || 'Position';
+                    var isSenator = block.getAttribute('data-is-senator') === '1';
+                    var checkedInputs = block.querySelectorAll('input:checked');
+
+                    if (isSenator) {
+                        if (checkedInputs.length < 1) {
+                            data.missingPositions.push('Senator');
+                            continue;
+                        }
+
+                        if (checkedInputs.length > 12) {
+                            data.invalidMessage = 'You can select up to 12 senators only.';
+                            return data;
+                        }
+                    } else {
+                        if (checkedInputs.length !== 1) {
+                            data.missingPositions.push(positionName);
+                            continue;
+                        }
+                    }
+
+                    data.totalChoices += checkedInputs.length;
+
+                    data.previewHtml += '<div class="ballotPositionGroup">';
+                    data.previewHtml += '<div class="ballotPositionGroupHeader"><strong>' + escapeHtml(positionName) + '</strong><span>' + checkedInputs.length + ' choice(s)</span></div>';
+
+                    if (checkedInputs.length > 1) {
+                        data.previewHtml += '<ol class="ballotCandidateList">';
+
+                        for (var c = 0; c < checkedInputs.length; c++) {
+                            data.previewHtml += '<li>' + escapeHtml(checkedInputs[c].getAttribute('data-candidate-name') || 'Selected candidate') + '</li>';
+                        }
+
+                        data.previewHtml += '</ol>';
+                    } else {
+                        data.previewHtml += '<div class="ballotSingleCandidate">' + escapeHtml(checkedInputs[0].getAttribute('data-candidate-name') || 'Selected candidate') + '</div>';
+                    }
+
+                    data.previewHtml += '</div>';
+                }
+
+                return data;
+            }
+
+            window.openBallotConfirmation = function () {
+                var previewGroups = document.getElementById('ballotPreviewGroups');
+                var previewTotalChoices = document.getElementById('ballotPreviewTotalChoices');
+                var data = getBallotValidationData();
+
+                if (!data.form || !previewGroups) {
+                    showIvoteNotice('Voting form was not found. Please refresh the page.', 'Form Error');
+                    return;
+                }
+
+                if (data.invalidMessage !== '') {
+                    showIvoteNotice(data.invalidMessage, 'Selection Error');
+                    return;
+                }
+
+                if (data.totalChoices === 0) {
+                    showIvoteNotice('You cannot submit a blank ballot. Please select candidates first.', 'No Votes Selected');
+                    return;
+                }
+
+                if (data.missingPositions.length > 0) {
+                    showIvoteNotice(
+                        'Please complete your vote first. Missing position(s): ' + data.missingPositions.join(', ') + '.',
+                        'Incomplete Ballot'
+                    );
+                    return;
+                }
+
+                previewGroups.innerHTML = data.previewHtml;
+
+                if (previewTotalChoices) {
+                    previewTotalChoices.textContent = data.totalChoices;
+                }
+
+                openIvoteModal('ballotConfirmModal');
+            };
+
+            window.openProfileRequestModal = function () {
+                closeIvoteModal('profileModal', false);
+
+                setTimeout(function () {
+                    openIvoteModal('profileRequestModal');
+                }, 120);
+            };
+
+            window.submitProfileChangeRequest = function (event) {
+                event.preventDefault();
+
+                var requestField = document.getElementById('requestField');
+                var requestMessage = document.getElementById('requestMessage');
+
+                if (!requestField || !requestMessage || !requestField.value || !requestMessage.value.trim()) {
+                    showIvoteNotice('Please select the information to change and enter your correction details.', 'Incomplete Request');
+                    return;
+                }
+
+                showIvoteNotice('Your profile change request has been prepared.', 'Request Prepared');
+
+                var form = document.getElementById('profileChangeRequestForm');
+
+                if (form) {
+                    form.reset();
+                }
+
+                closeIvoteModal('profileRequestModal');
+            };
+
+            window.logoutUser = function () {
+                window.location.href = 'logout.php';
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+                removeBootstrapBackdrops();
+
+                var voteForm = document.getElementById('voteForm');
+
+                if (voteForm) {
+                    voteForm.setAttribute('novalidate', 'novalidate');
+                }
+            });
+
+            document.addEventListener('click', function (event) {
+                var modalOpener = event.target.closest('[data-bs-toggle="modal"][data-bs-target]');
+
+                if (modalOpener) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+
+                    openIvoteModal(modalOpener.getAttribute('data-bs-target'));
+                    return;
+                }
+
+                var modalCloser = event.target.closest('[data-bs-dismiss="modal"]');
+
+                if (modalCloser) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+
+                    var parentModal = modalCloser.closest('.modal');
+
+                    if (parentModal) {
+                        closeIvoteModal(parentModal);
+                    }
+
+                    return;
+                }
+
+                if (event.target.classList && event.target.classList.contains('modal')) {
+                    closeIvoteModal(event.target);
+                }
+            }, true);
+
+            document.addEventListener('change', function (event) {
+                var input = event.target;
+
+                if (!input || input.type !== 'checkbox') {
+                    return;
+                }
+
+                var block = input.closest('[data-max-select]');
+
+                if (!block) {
+                    return;
+                }
+
+                var maxSelect = parseInt(block.getAttribute('data-max-select'), 10);
+                var checkedBoxes = block.querySelectorAll('input[type="checkbox"]:checked');
+
+                if (checkedBoxes.length > maxSelect) {
+                    input.checked = false;
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    showIvoteNotice('You can select up to ' + maxSelect + ' senators only.', 'Selection Limit');
+                }
+            }, true);
+
+            document.addEventListener('submit', function (event) {
+                if (!event.target || event.target.id !== 'voteForm') {
+                    return;
+                }
+
+                var data = getBallotValidationData();
+
+                if (data.invalidMessage !== '') {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    showIvoteNotice(data.invalidMessage, 'Selection Error');
+                    return;
+                }
+
+                if (data.totalChoices === 0) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    showIvoteNotice('You cannot submit a blank ballot. Please select candidates first.', 'No Votes Selected');
+                    return;
+                }
+
+                if (data.missingPositions.length > 0) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    showIvoteNotice(
+                        'Please complete your vote first. Missing position(s): ' + data.missingPositions.join(', ') + '.',
+                        'Incomplete Ballot'
+                    );
+                }
+            }, true);
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    var notice = document.getElementById('ivoteNoticeOverlay');
+
+                    if (notice && notice.classList.contains('show')) {
+                        closeIvoteNotice();
+                        return;
+                    }
+
+                    var openModals = document.querySelectorAll('.modal.show');
+
+                    if (openModals.length > 0) {
+                        closeIvoteModal(openModals[openModals.length - 1]);
+                    }
+                }
+            });
+        })();
+    </script>
+    <script>
+        window.submitProfileChangeRequest = function (event) {
+            event.preventDefault();
+
+            var form = document.getElementById('profileChangeRequestForm');
+            var requestField = document.getElementById('requestField');
+            var requestMessage = document.getElementById('requestMessage');
+
+            if (!form || !requestField || !requestMessage) {
+                alert('Profile request form was not found.');
+                return false;
+            }
+
+            if (!requestField.value || !requestMessage.value.trim()) {
+                alert('Please select the information to change and enter your correction details.');
+                return false;
+            }
+
+            var submitButton = form.querySelector('button[type="submit"]');
+            var originalButtonText = '';
+
+            if (submitButton) {
+                originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Submitting...';
+            }
+
+            var formData = new FormData();
+            formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
+            formData.append('request_field', requestField.value);
+            formData.append('request_message', requestMessage.value);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'submit_profile_request.php', true);
+
+            xhr.onload = function () {
+                var response;
+
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+
+                try {
+                    response = JSON.parse(xhr.responseText);
+                } catch (error) {
+                    alert('Invalid server response. Check submit_profile_request.php.');
+                    return;
+                }
+
+                if (response.success) {
+                    form.reset();
+
+                    var requestModalElement = document.getElementById('profileRequestModal');
+
+                    if (typeof ivoteCloseModal === 'function') {
+                        ivoteCloseModal('profileRequestModal');
+                    } else if (window.bootstrap && requestModalElement) {
+                        var requestModal = bootstrap.Modal.getInstance(requestModalElement);
+
+                        if (requestModal) {
+                            requestModal.hide();
+                        }
+                    }
+
+                    alert(response.message);
+                } else {
+                    alert(response.message);
+                }
+            };
+
+            xhr.onerror = function () {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+
+                alert('Connection error. Please try again.');
+            };
+
+            xhr.send(formData);
+
+            return false;
+        };
+    </script>
+
+<div class="modal fade" id="profileNotificationModal" tabindex="-1" aria-labelledby="profileNotificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content profileModalContent">
+            <div class="profileModalHeader">
+                <div class="profileModalAvatar">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <h5 id="profileNotificationModalLabel">Notifications</h5>
+                <p>Your profile request updates from the admin side.</p>
+            </div>
+
+            <div class="requestModalBody">
+                <?php if (!isset($profile_notifications) || count($profile_notifications) === 0) { ?>
+                    <div class="requestNotice mb-0">
+                        <i class="fa-solid fa-circle-info me-2"></i>
+                        You do not have profile request notifications yet.
+                    </div>
+                <?php } else { ?>
+                    <div class="profileNotifList">
+                        <?php foreach ($profile_notifications as $notification) { ?>
+                            <div class="profileNotifItem">
+                                <div class="profileNotifTop">
+                                    <div>
+                                        <strong><?php echo ivoteph_h($notification['request_field']); ?></strong>
+                                        <small>
+                                            Submitted:
+                                            <?php echo ivoteph_h(ivoteph_profile_request_date($notification['created_at'])); ?>
+                                        </small>
+                                    </div>
+
+                                    <span class="badge text-bg-<?php echo ivoteph_profile_request_badge_class($notification['request_status']); ?>">
+                                        <?php echo ivoteph_h($notification['request_status']); ?>
+                                    </span>
+                                </div>
+
+                                <div class="profileNotifText">
+                                    <strong>Your request:</strong><br>
+                                    <?php echo nl2br(ivoteph_h($notification['request_message'])); ?>
+                                </div>
+
+                                <?php if ($notification['admin_response'] !== null && trim((string) $notification['admin_response']) !== '') { ?>
+                                    <div class="profileNotifResponse">
+                                        <strong>Admin response:</strong><br>
+                                        <?php echo nl2br(ivoteph_h($notification['admin_response'])); ?>
+
+                                        <?php if ($notification['reviewed_at'] !== null && trim((string) $notification['reviewed_at']) !== '') { ?>
+                                            <small>
+                                                Reviewed:
+                                                <?php echo ivoteph_h(ivoteph_profile_request_date($notification['reviewed_at'])); ?>
+                                            </small>
+                                        <?php } ?>
+                                    </div>
+                                <?php } else { ?>
+                                    <div class="profileNotifPending">
+                                        <i class="fa-solid fa-clock me-1"></i>
+                                        Waiting for admin response.
+                                    </div>
+                                <?php } ?>
+                            </div>
+                        <?php } ?>
+                    </div>
+                <?php } ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script id="ivoteProfileRequestFinalSubmitFix">
+window.submitProfileChangeRequest = function (event) {
+    event.preventDefault();
+
+    var form = document.getElementById('profileChangeRequestForm');
+    var requestField = document.getElementById('requestField');
+    var requestMessage = document.getElementById('requestMessage');
+
+    if (!form || !requestField || !requestMessage) {
+        alert('Profile request form was not found.');
+        return false;
+    }
+
+    if (!requestField.value || !requestMessage.value.trim()) {
+        if (typeof showIvoteNotice === 'function') {
+            showIvoteNotice('Please select the information to change and enter your correction details.', 'Incomplete Request');
+        } else {
+            alert('Please select the information to change and enter your correction details.');
+        }
+
+        return false;
+    }
+
+    var submitButton = form.querySelector('button[type="submit"]');
+    var originalButtonText = '';
+
+    if (submitButton) {
+        originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Submitting...';
+    }
+
+    var formData = new FormData();
+    formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
+    formData.append('request_field', requestField.value);
+    formData.append('request_message', requestMessage.value.trim());
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'submit_profile_request.php', true);
+
+    xhr.onload = function () {
+        var response = null;
+
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+
+        try {
+            response = JSON.parse(xhr.responseText);
+        } catch (error) {
+            alert('Invalid server response. Please check submit_profile_request.php.');
+            return;
+        }
+
+        if (response.success) {
+            form.reset();
+
+            if (typeof ivoteCloseModal === 'function') {
+                ivoteCloseModal('profileRequestModal');
+            } else if (window.bootstrap) {
+                var requestModalElement = document.getElementById('profileRequestModal');
+                var requestModal = requestModalElement ? bootstrap.Modal.getInstance(requestModalElement) : null;
+
+                if (requestModal) {
+                    requestModal.hide();
+                }
+            }
+
+            if (typeof showIvoteNotice === 'function') {
+                showIvoteNotice(response.message, 'Request Submitted');
+            } else {
+                alert(response.message);
+            }
+
+            setTimeout(function () {
+                window.location.reload();
+            }, 900);
+        } else {
+            if (typeof showIvoteNotice === 'function') {
+                showIvoteNotice(response.message, 'Request Failed');
+            } else {
+                alert(response.message);
+            }
+        }
+    };
+
+    xhr.onerror = function () {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+
+        alert('Connection error. Please try again.');
+    };
+
+    xhr.send(formData);
+    return false;
+};
+</script>
 
 </body>
 

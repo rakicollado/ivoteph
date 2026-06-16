@@ -3627,3 +3627,236 @@ body.ivoteModalOpen.userPage {
     max-height: calc(100vh - 190px) !important;
   }
 }
+
+html body.userPage>header.userTopbar,
+body.userPage>header.userTopbar,
+.userTopbar {
+  z-index: 1020 !important;
+}
+
+body.modal-open .userTopbar,
+body.ivoteModalOpen .userTopbar,
+html body.userPage.modal-open>header.userTopbar {
+  z-index: 900 !important;
+}
+
+html body.userPage .modal-backdrop,
+html body.userPage .modal-backdrop.show,
+body.userPage .modal-backdrop,
+body.userPage .modal-backdrop.show,
+.modal-backdrop,
+.modal-backdrop.show {
+  z-index: 1040 !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+}
+
+html body.userPage .modal,
+body.userPage .modal,
+.modal {
+  z-index: 1055 !important;
+  pointer-events: auto !important;
+}
+
+html body.userPage .modal.show,
+body.userPage .modal.show,
+.modal.show {
+  display: block !important;
+  pointer-events: auto !important;
+}
+
+html body.userPage .modal-dialog,
+body.userPage .modal-dialog,
+.modal-dialog {
+  position: relative !important;
+  z-index: 1065 !important;
+  pointer-events: auto !important;
+}
+
+html body.userPage .modal-content,
+body.userPage .modal-content,
+.modal-content,
+.profileModalContent,
+.ballotModalContent {
+  position: relative !important;
+  z-index: 1070 !important;
+  pointer-events: auto !important;
+}
+
+html body.userPage .modal-content *,
+body.userPage .modal-content *,
+.modal-content *,
+.profileModalContent *,
+.ballotModalContent * {
+  pointer-events: auto !important;
+}
+
+body.modal-open,
+body.ivoteModalOpen {
+  overflow: hidden !important;
+}
+
+/* iVotePH profile request notification button and modal */
+.profileNotifBtn {
+  position: relative !important;
+  grid-column: 3 !important;
+  justify-self: end !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  border: 1px solid #dce5f2 !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: #0647b8 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  overflow: visible !important;
+  z-index: 2 !important;
+}
+
+.profileNotifBtn:hover {
+  background: #eaf2ff !important;
+  color: #033587 !important;
+}
+
+.profileNotifBtn span {
+  position: absolute !important;
+  top: -6px !important;
+  right: -6px !important;
+  min-width: 22px !important;
+  height: 22px !important;
+  padding: 0 7px !important;
+  border-radius: 999px !important;
+  background: #d8202a !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 8px 18px rgba(216, 32, 42, 0.25) !important;
+}
+
+html body.userPage>header.userTopbar>.userTopbarInner,
+body.userPage>header.userTopbar>.userTopbarInner {
+  grid-template-columns: auto minmax(0, 1fr) auto auto !important;
+  grid-template-areas: "brand nav notif chip" !important;
+}
+
+html body.userPage>header.userTopbar .profileNotifBtn,
+body.userPage>header.userTopbar .profileNotifBtn {
+  grid-area: notif !important;
+}
+
+html body.userPage>header.userTopbar .userChip,
+body.userPage>header.userTopbar .userChip {
+  grid-area: chip !important;
+  grid-column: 4 !important;
+}
+
+.profileNotifList {
+  display: grid;
+  gap: 12px;
+}
+
+.profileNotifItem {
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #dce5f2;
+}
+
+.profileNotifTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.profileNotifTop strong {
+  display: block;
+  color: #101828;
+  font-weight: 950;
+}
+
+.profileNotifTop small {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.profileNotifText {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f7f9fd;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.profileNotifResponse {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #eef5ff;
+  color: #24344f;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid #cfe0ff;
+}
+
+.profileNotifResponse small {
+  display: block;
+  margin-top: 8px;
+  color: #667085;
+}
+
+.profileNotifPending {
+  margin-top: 10px;
+  color: #8a5a00;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 992px) {
+
+  html body.userPage>header.userTopbar>.userTopbarInner,
+  body.userPage>header.userTopbar>.userTopbarInner {
+    grid-template-columns: auto minmax(0, 1fr) auto auto !important;
+    grid-template-areas: "brand nav notif chip" !important;
+  }
+
+  .profileNotifBtn {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+  }
+}
+
+@media (max-width: 576px) {
+
+  html body.userPage>header.userTopbar>.userTopbarInner,
+  body.userPage>header.userTopbar>.userTopbarInner {
+    grid-template-columns: auto minmax(0, 1fr) auto auto !important;
+    grid-template-areas: "brand nav notif chip" !important;
+    gap: 6px !important;
+  }
+
+  .profileNotifBtn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+  }
+
+  .profileNotifBtn span {
+    min-width: 20px !important;
+    height: 20px !important;
+    font-size: 10px !important;
+  }
+}

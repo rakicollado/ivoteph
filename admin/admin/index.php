@@ -83,12 +83,28 @@ if (dashboard_table_exists($pdo, 'ballots')) {
     $total_votes_cast = dashboard_count_query($pdo, "
         SELECT COUNT(DISTINCT ballot_id)
         FROM ballots
-    " );
+    ");
 } elseif (dashboard_table_exists($pdo, 'votes')) {
     $total_votes_cast = dashboard_count_query($pdo, "
         SELECT COUNT(DISTINCT ballot_id)
         FROM votes
-    " );
+    ");
+}
+
+$profile_requests_total = 0;
+$profile_requests_pending = 0;
+
+if (dashboard_table_exists($pdo, 'profile_change_requests')) {
+    $profile_requests_total = dashboard_count_query($pdo, "
+        SELECT COUNT(*)
+        FROM profile_change_requests
+    ");
+
+    $profile_requests_pending = dashboard_count_query($pdo, "
+        SELECT COUNT(*)
+        FROM profile_change_requests
+        WHERE request_status = 'Pending'
+    ");
 }
 
 $active_elections = 0;
@@ -109,6 +125,29 @@ $flashes = consume_flash();
 require_once dirname(__FILE__) . '/../includes/header.php';
 require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
+
+<style>
+    .ivote-profile-request-badge {
+        margin-top: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        height: 26px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #dc2626;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 950;
+        box-shadow: 0 8px 18px rgba(220, 38, 38, 0.25);
+    }
+
+    .ivote-quick-action:hover .ivote-profile-request-badge {
+        background: #ffffff;
+        color: #dc2626;
+    }
+</style>
 
 <div class="ivote-dashboard-wrapper">
 
@@ -256,6 +295,17 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                 <a class="ivote-quick-action" href="voters.php">
                     <i class="bi bi-people-fill"></i>
                     Add Voter
+                </a>
+
+                <a class="ivote-quick-action" href="profile_requests.php">
+                    <i class="bi bi-pencil-square"></i>
+                    Profile Requests
+
+                    <?php if ($profile_requests_pending > 0) { ?>
+                        <span class="ivote-profile-request-badge">
+                            <?php echo number_format($profile_requests_pending); ?>
+                        </span>
+                    <?php } ?>
                 </a>
 
                 <a class="ivote-quick-action" href="candidates.php">
