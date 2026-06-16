@@ -3406,7 +3406,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                     </ul>
                 </div>
             </nav>
-            <button type="button" class="profileNotifBtn" data-bs-toggle="modal" data-bs-target="#profileNotificationModal" title="Profile request notifications">
+            <button type="button" class="profileNotifBtn" data-bs-toggle="modal"
+                data-bs-target="#profileNotificationModal" title="Profile request notifications">
                 <i class="fa-solid fa-bell"></i>
                 <?php if (isset($profile_notification_count) && $profile_notification_count > 0) { ?>
                     <span><?php echo number_format($profile_notification_count); ?></span>
@@ -3834,7 +3835,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                         Submit a request to the admin if your registered name or personal details need correction.
                     </div>
 
-                    <form id="profileChangeRequestForm" method="post" action="submit_profile_request.php" onsubmit="submitProfileChangeRequest(event)">
+                    <form id="profileChangeRequestForm" method="post" action="submit_profile_request.php"
+                        onsubmit="submitProfileChangeRequest(event)">
                         <div class="mb-3">
                             <label for="requestField" class="form-label">Information to change</label>
                             <select class="form-select" id="requestField" name="request_field" required>
@@ -4862,174 +4864,176 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
         };
     </script>
 
-<div class="modal fade" id="profileNotificationModal" tabindex="-1" aria-labelledby="profileNotificationModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content profileModalContent">
-            <div class="profileModalHeader">
-                <div class="profileModalAvatar">
-                    <i class="fa-solid fa-bell"></i>
+    <div class="modal fade" id="profileNotificationModal" tabindex="-1" aria-labelledby="profileNotificationModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content profileModalContent">
+                <div class="profileModalHeader">
+                    <div class="profileModalAvatar">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                    <h5 id="profileNotificationModalLabel">Notifications</h5>
+                    <p>Your profile request updates from the admin side.</p>
                 </div>
-                <h5 id="profileNotificationModalLabel">Notifications</h5>
-                <p>Your profile request updates from the admin side.</p>
-            </div>
 
-            <div class="requestModalBody">
-                <?php if (!isset($profile_notifications) || count($profile_notifications) === 0) { ?>
-                    <div class="requestNotice mb-0">
-                        <i class="fa-solid fa-circle-info me-2"></i>
-                        You do not have profile request notifications yet.
-                    </div>
-                <?php } else { ?>
-                    <div class="profileNotifList">
-                        <?php foreach ($profile_notifications as $notification) { ?>
-                            <div class="profileNotifItem">
-                                <div class="profileNotifTop">
-                                    <div>
-                                        <strong><?php echo ivoteph_h($notification['request_field']); ?></strong>
-                                        <small>
-                                            Submitted:
-                                            <?php echo ivoteph_h(ivoteph_profile_request_date($notification['created_at'])); ?>
-                                        </small>
-                                    </div>
-
-                                    <span class="badge text-bg-<?php echo ivoteph_profile_request_badge_class($notification['request_status']); ?>">
-                                        <?php echo ivoteph_h($notification['request_status']); ?>
-                                    </span>
-                                </div>
-
-                                <div class="profileNotifText">
-                                    <strong>Your request:</strong><br>
-                                    <?php echo nl2br(ivoteph_h($notification['request_message'])); ?>
-                                </div>
-
-                                <?php if ($notification['admin_response'] !== null && trim((string) $notification['admin_response']) !== '') { ?>
-                                    <div class="profileNotifResponse">
-                                        <strong>Admin response:</strong><br>
-                                        <?php echo nl2br(ivoteph_h($notification['admin_response'])); ?>
-
-                                        <?php if ($notification['reviewed_at'] !== null && trim((string) $notification['reviewed_at']) !== '') { ?>
+                <div class="requestModalBody">
+                    <?php if (!isset($profile_notifications) || count($profile_notifications) === 0) { ?>
+                        <div class="requestNotice mb-0">
+                            <i class="fa-solid fa-circle-info me-2"></i>
+                            You do not have profile request notifications yet.
+                        </div>
+                    <?php } else { ?>
+                        <div class="profileNotifList">
+                            <?php foreach ($profile_notifications as $notification) { ?>
+                                <div class="profileNotifItem">
+                                    <div class="profileNotifTop">
+                                        <div>
+                                            <strong><?php echo ivoteph_h($notification['request_field']); ?></strong>
                                             <small>
-                                                Reviewed:
-                                                <?php echo ivoteph_h(ivoteph_profile_request_date($notification['reviewed_at'])); ?>
+                                                Submitted:
+                                                <?php echo ivoteph_h(ivoteph_profile_request_date($notification['created_at'])); ?>
                                             </small>
-                                        <?php } ?>
+                                        </div>
+
+                                        <span
+                                            class="badge text-bg-<?php echo ivoteph_profile_request_badge_class($notification['request_status']); ?>">
+                                            <?php echo ivoteph_h($notification['request_status']); ?>
+                                        </span>
                                     </div>
-                                <?php } else { ?>
-                                    <div class="profileNotifPending">
-                                        <i class="fa-solid fa-clock me-1"></i>
-                                        Waiting for admin response.
+
+                                    <div class="profileNotifText">
+                                        <strong>Your request:</strong><br>
+                                        <?php echo nl2br(ivoteph_h($notification['request_message'])); ?>
                                     </div>
-                                <?php } ?>
-                            </div>
-                        <?php } ?>
-                    </div>
-                <?php } ?>
+
+                                    <?php if ($notification['admin_response'] !== null && trim((string) $notification['admin_response']) !== '') { ?>
+                                        <div class="profileNotifResponse">
+                                            <strong>Admin response:</strong><br>
+                                            <?php echo nl2br(ivoteph_h($notification['admin_response'])); ?>
+
+                                            <?php if ($notification['reviewed_at'] !== null && trim((string) $notification['reviewed_at']) !== '') { ?>
+                                                <small>
+                                                    Reviewed:
+                                                    <?php echo ivoteph_h(ivoteph_profile_request_date($notification['reviewed_at'])); ?>
+                                                </small>
+                                            <?php } ?>
+                                        </div>
+                                    <?php } else { ?>
+                                        <div class="profileNotifPending">
+                                            <i class="fa-solid fa-clock me-1"></i>
+                                            Waiting for admin response.
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    <?php } ?>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
 
-<script id="ivoteProfileRequestFinalSubmitFix">
-window.submitProfileChangeRequest = function (event) {
-    event.preventDefault();
+    <script id="ivoteProfileRequestFinalSubmitFix">
+        window.submitProfileChangeRequest = function (event) {
+            event.preventDefault();
 
-    var form = document.getElementById('profileChangeRequestForm');
-    var requestField = document.getElementById('requestField');
-    var requestMessage = document.getElementById('requestMessage');
+            var form = document.getElementById('profileChangeRequestForm');
+            var requestField = document.getElementById('requestField');
+            var requestMessage = document.getElementById('requestMessage');
 
-    if (!form || !requestField || !requestMessage) {
-        alert('Profile request form was not found.');
-        return false;
-    }
+            if (!form || !requestField || !requestMessage) {
+                alert('Profile request form was not found.');
+                return false;
+            }
 
-    if (!requestField.value || !requestMessage.value.trim()) {
-        if (typeof showIvoteNotice === 'function') {
-            showIvoteNotice('Please select the information to change and enter your correction details.', 'Incomplete Request');
-        } else {
-            alert('Please select the information to change and enter your correction details.');
-        }
-
-        return false;
-    }
-
-    var submitButton = form.querySelector('button[type="submit"]');
-    var originalButtonText = '';
-
-    if (submitButton) {
-        originalButtonText = submitButton.innerHTML;
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Submitting...';
-    }
-
-    var formData = new FormData();
-    formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
-    formData.append('request_field', requestField.value);
-    formData.append('request_message', requestMessage.value.trim());
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'submit_profile_request.php', true);
-
-    xhr.onload = function () {
-        var response = null;
-
-        if (submitButton) {
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        }
-
-        try {
-            response = JSON.parse(xhr.responseText);
-        } catch (error) {
-            alert('Invalid server response. Please check submit_profile_request.php.');
-            return;
-        }
-
-        if (response.success) {
-            form.reset();
-
-            if (typeof ivoteCloseModal === 'function') {
-                ivoteCloseModal('profileRequestModal');
-            } else if (window.bootstrap) {
-                var requestModalElement = document.getElementById('profileRequestModal');
-                var requestModal = requestModalElement ? bootstrap.Modal.getInstance(requestModalElement) : null;
-
-                if (requestModal) {
-                    requestModal.hide();
+            if (!requestField.value || !requestMessage.value.trim()) {
+                if (typeof showIvoteNotice === 'function') {
+                    showIvoteNotice('Please select the information to change and enter your correction details.', 'Incomplete Request');
+                } else {
+                    alert('Please select the information to change and enter your correction details.');
                 }
+
+                return false;
             }
 
-            if (typeof showIvoteNotice === 'function') {
-                showIvoteNotice(response.message, 'Request Submitted');
-            } else {
-                alert(response.message);
+            var submitButton = form.querySelector('button[type="submit"]');
+            var originalButtonText = '';
+
+            if (submitButton) {
+                originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Submitting...';
             }
 
-            setTimeout(function () {
-                window.location.reload();
-            }, 900);
-        } else {
-            if (typeof showIvoteNotice === 'function') {
-                showIvoteNotice(response.message, 'Request Failed');
-            } else {
-                alert(response.message);
-            }
-        }
-    };
+            var formData = new FormData();
+            formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
+            formData.append('request_field', requestField.value);
+            formData.append('request_message', requestMessage.value.trim());
 
-    xhr.onerror = function () {
-        if (submitButton) {
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        }
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'submit_profile_request.php', true);
 
-        alert('Connection error. Please try again.');
-    };
+            xhr.onload = function () {
+                var response = null;
 
-    xhr.send(formData);
-    return false;
-};
-</script>
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+
+                try {
+                    response = JSON.parse(xhr.responseText);
+                } catch (error) {
+                    alert('Invalid server response. Please check submit_profile_request.php.');
+                    return;
+                }
+
+                if (response.success) {
+                    form.reset();
+
+                    if (typeof ivoteCloseModal === 'function') {
+                        ivoteCloseModal('profileRequestModal');
+                    } else if (window.bootstrap) {
+                        var requestModalElement = document.getElementById('profileRequestModal');
+                        var requestModal = requestModalElement ? bootstrap.Modal.getInstance(requestModalElement) : null;
+
+                        if (requestModal) {
+                            requestModal.hide();
+                        }
+                    }
+
+                    if (typeof showIvoteNotice === 'function') {
+                        showIvoteNotice(response.message, 'Request Submitted');
+                    } else {
+                        alert(response.message);
+                    }
+
+                    setTimeout(function () {
+                        window.location.reload();
+                    }, 900);
+                } else {
+                    if (typeof showIvoteNotice === 'function') {
+                        showIvoteNotice(response.message, 'Request Failed');
+                    } else {
+                        alert(response.message);
+                    }
+                }
+            };
+
+            xhr.onerror = function () {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+
+                alert('Connection error. Please try again.');
+            };
+
+            xhr.send(formData);
+            return false;
+        };
+    </script>
 
 </body>
 

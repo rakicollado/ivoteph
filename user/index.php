@@ -1,8 +1,7 @@
 ﻿<?php require_once __DIR__ . '/auth_check.php'; ?>
 
 <?php
-function ivoteph_h($value)
-{
+function ivoteph_h($value) {
     if ($value === null || $value === '') {
         return 'N/A';
     }
@@ -10,8 +9,7 @@ function ivoteph_h($value)
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
-function ivoteph_date_display($value)
-{
+function ivoteph_date_display($value) {
     if ($value === null || $value == '' || $value == '0000-00-00') {
         return 'N/A';
     }
@@ -142,28 +140,10 @@ if ($profile_complete_address == ', , ,') {
     $profile_complete_address = 'N/A';
 }
 
+
 /* iVotePH profile request notification data */
-if (!function_exists('ivoteph_profile_request_badge_class')) {
-    function ivoteph_profile_request_badge_class($status)
-    {
-        if ($status === 'Approved') {
-            return 'success';
-        }
-
-        if ($status === 'Rejected') {
-            return 'danger';
-        }
-
-        if ($status === 'Resolved') {
-            return 'primary';
-        }
-
-        return 'warning';
-    }
-}
-
-if (!function_exists('ivoteph_profile_request_table_exists')) {
-    function ivoteph_profile_request_table_exists($conn, $table_name)
+if (!function_exists('ivoteph_profile_notif_table_exists')) {
+    function ivoteph_profile_notif_table_exists($conn, $table_name)
     {
         $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
 
@@ -187,8 +167,54 @@ if (!function_exists('ivoteph_profile_request_table_exists')) {
     }
 }
 
-if (!function_exists('ivoteph_profile_request_date')) {
-    function ivoteph_profile_request_date($value)
+if (!function_exists('ivoteph_profile_notif_column_exists')) {
+    function ivoteph_profile_notif_column_exists($conn, $table_name, $column_name)
+    {
+        $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
+        $column_name = preg_replace('/[^A-Za-z0-9_]/', '', $column_name);
+
+        if ($table_name === '' || $column_name === '') {
+            return false;
+        }
+
+        $table_name_sql = mysqli_real_escape_string($conn, $table_name);
+        $column_name_sql = mysqli_real_escape_string($conn, $column_name);
+        $result = mysqli_query($conn, "SHOW COLUMNS FROM `" . $table_name_sql . "` LIKE '" . $column_name_sql . "'");
+
+        if ($result && mysqli_num_rows($result) > 0) {
+            mysqli_free_result($result);
+            return true;
+        }
+
+        if ($result) {
+            mysqli_free_result($result);
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('ivoteph_profile_notif_badge_class')) {
+    function ivoteph_profile_notif_badge_class($status)
+    {
+        if ($status === 'Approved') {
+            return 'success';
+        }
+
+        if ($status === 'Rejected') {
+            return 'danger';
+        }
+
+        if ($status === 'Resolved') {
+            return 'primary';
+        }
+
+        return 'warning';
+    }
+}
+
+if (!function_exists('ivoteph_profile_notif_date')) {
+    function ivoteph_profile_notif_date($value)
     {
         if ($value === null || $value === '' || $value === '0000-00-00 00:00:00') {
             return 'N/A';
@@ -207,7 +233,11 @@ if (!function_exists('ivoteph_profile_request_date')) {
 $profile_notifications = array();
 $profile_notification_count = 0;
 
-if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_voter_id) !== '' && ivoteph_profile_request_table_exists($conn, 'profile_change_requests')) {
+if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_voter_id) !== '' && ivoteph_profile_notif_table_exists($conn, 'profile_change_requests')) {
+    if (!ivoteph_profile_notif_column_exists($conn, 'profile_change_requests', 'user_seen_at')) {
+        mysqli_query($conn, "ALTER TABLE profile_change_requests ADD user_seen_at DATETIME NULL");
+    }
+
     $stmt_profile_notifications = mysqli_prepare($conn, "
         SELECT
             request_id,
@@ -216,7 +246,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             request_status,
             admin_response,
             created_at,
-            reviewed_at
+            reviewed_at,
+            user_seen_at
         FROM profile_change_requests
         WHERE voter_id = ?
         ORDER BY request_id DESC
@@ -234,7 +265,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             $notif_request_status,
             $notif_admin_response,
             $notif_created_at,
-            $notif_reviewed_at
+            $notif_reviewed_at,
+            $notif_user_seen_at
         );
 
         while (mysqli_stmt_fetch($stmt_profile_notifications)) {
@@ -245,10 +277,11 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                 'request_status' => $notif_request_status,
                 'admin_response' => $notif_admin_response,
                 'created_at' => $notif_created_at,
-                'reviewed_at' => $notif_reviewed_at
+                'reviewed_at' => $notif_reviewed_at,
+                'user_seen_at' => $notif_user_seen_at
             );
 
-            if ($notif_request_status === 'Approved' || $notif_request_status === 'Rejected' || $notif_request_status === 'Resolved') {
+            if (($notif_request_status === 'Approved' || $notif_request_status === 'Rejected' || $notif_request_status === 'Resolved') && ($notif_user_seen_at === null || trim((string) $notif_user_seen_at) === '')) {
                 $profile_notification_count++;
             }
         }
@@ -1029,7 +1062,6 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
         }
 
         @media (prefers-reduced-motion: reduce) {
-
             *,
             *::before,
             *::after {
@@ -1218,940 +1250,77 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
         }
     </style>
 
-    <style id="ivotephTopbarFinalCleanFix">
-        html,
-        body {
-            overflow-x: hidden !important;
-        }
 
-        body.userPage {
-            padding-top: 78px !important;
-        }
-
-        .userTopbar {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            z-index: 5000 !important;
+    <style id="ivoteIndexQuickActionsOnlyFix">
+        .indexQuickActionsSection {
+            display: block !important;
+            grid-template-columns: 1fr !important;
             width: 100% !important;
-            margin: 0 !important;
-            padding: 10px 22px !important;
-            background: rgba(248, 250, 255, 0.97) !important;
-            border: 0 !important;
-            border-bottom: 1px solid rgba(210, 219, 235, 0.95) !important;
-            border-radius: 0 !important;
-            box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08) !important;
-            backdrop-filter: blur(16px) saturate(1.15) !important;
-            -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
         }
 
-        .userTopbarInner {
+        .indexQuickActionsOnly {
             width: 100% !important;
-            max-width: 1480px !important;
-            min-height: 52px !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
+            min-height: 0 !important;
+        }
+
+        .indexQuickActionsHeader {
+            margin-bottom: 22px !important;
+        }
+
+        .indexQuickActionsHeader h2 {
+            font-size: clamp(28px, 3vw, 40px) !important;
+            line-height: 1.05 !important;
+        }
+
+        .indexQuickActionsGrid {
             display: grid !important;
-            grid-template-columns: auto minmax(0, 1fr) auto !important;
-            grid-template-areas: "brand nav profile" !important;
-            align-items: center !important;
-            gap: 14px !important;
-            background: transparent !important;
-            border: none !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
-
-        .userTopbar::before,
-        .userTopbar::after,
-        .userTopbarInner::before,
-        .userTopbarInner::after {
-            content: none !important;
-            display: none !important;
-        }
-
-        .brandLink {
-            grid-area: brand !important;
-            justify-self: start !important;
-            align-self: center !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            min-width: 0 !important;
-            min-height: 0 !important;
-            width: auto !important;
-            height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: transparent !important;
-            border: none !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
-
-        img.brandLogo,
-        .brandLogo {
-            display: block !important;
-            width: 80px !important;
-            max-width: 80px !important;
-            height: auto !important;
-            max-height: 42px !important;
-            object-fit: contain !important;
-            margin: 0 !important;
-            filter: none !important;
-        }
-
-        .topbarSearch,
-        .topbarSearch *,
-        .userTopbar .topbarSearch,
-        .userTopbar .input-group:has(.searchInput) {
-            display: none !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
-            min-width: 0 !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden !important;
-            pointer-events: none !important;
-        }
-
-        .userNavBar {
-            grid-area: nav !important;
-            align-self: center !important;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+            gap: 16px !important;
             width: 100% !important;
-            min-width: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            -webkit-overflow-scrolling: touch !important;
-            scrollbar-width: none !important;
         }
 
-        .userNavBar::-webkit-scrollbar,
-        .userNavInner::-webkit-scrollbar {
-            display: none !important;
-        }
-
-        .userNavInner {
-            width: 100% !important;
-            max-width: none !important;
-            min-width: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            scrollbar-width: none !important;
-        }
-
-        .userNavList {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            flex-wrap: nowrap !important;
-            gap: 7px !important;
-            width: max-content !important;
-            min-width: max-content !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            list-style: none !important;
-            overflow: visible !important;
-        }
-
-        .userNavList li {
-            list-style: none !important;
-            flex: 0 0 auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .userNavList a {
-            height: 40px !important;
-            min-height: 40px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 6px !important;
-            padding: 0 14px !important;
-            border-radius: 999px !important;
-            background: #f3f6fb !important;
-            border: 1px solid transparent !important;
-            color: #344054 !important;
-            font-size: 12px !important;
-            font-weight: 900 !important;
-            line-height: 1 !important;
-            white-space: nowrap !important;
-            text-decoration: none !important;
-            box-shadow: none !important;
-            transform: none !important;
-        }
-
-        .userNavList a i {
-            font-size: 12px !important;
-            color: currentColor !important;
-        }
-
-        .userNavList a:hover {
-            background: #e8f1ff !important;
-            color: #0646a8 !important;
-            transform: none !important;
-        }
-
-        .userNavList a.active {
-            background: #0b5ed7 !important;
-            color: #ffffff !important;
-            box-shadow: 0 8px 18px rgba(6, 70, 168, 0.18) !important;
-        }
-
-        .userChip {
-            grid-area: profile !important;
-            justify-self: end !important;
-            align-self: center !important;
-            height: 44px !important;
-            min-height: 44px !important;
-            max-width: 290px !important;
-            margin: 0 !important;
-            padding: 5px 12px 5px 6px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
-            border-radius: 999px !important;
+        .indexQuickActionsGrid .quickAction {
+            min-height: 132px !important;
+            border-radius: 22px !important;
             background: #ffffff !important;
             border: 1px solid #dce5f2 !important;
-            box-shadow: none !important;
-            color: #172033 !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-        }
-
-        .userAvatarCircle {
-            width: 34px !important;
-            height: 34px !important;
-            min-width: 34px !important;
-            font-size: 12px !important;
-            background: #0b5ed7 !important;
-            color: #ffffff !important;
-        }
-
-        .userName {
-            font-size: 11px !important;
-            line-height: 1.05 !important;
-            max-width: 190px !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-        }
-
-        .verifiedBadge {
-            font-size: 9px !important;
-            line-height: 1.05 !important;
-        }
-
-        .userMain {
-            padding-top: 22px !important;
-        }
-
-        .modal {
-            z-index: 7000 !important;
-        }
-
-        .modal-backdrop {
-            z-index: 6500 !important;
-        }
-
-        .modal-dialog,
-        #profileRequestModal .modal-dialog {
-            width: min(560px, calc(100vw - 28px)) !important;
-            max-width: min(560px, calc(100vw - 28px)) !important;
-            margin: 16px auto !important;
-        }
-
-        #profileModal .modal-dialog {
-            width: min(980px, calc(100vw - 28px)) !important;
-            max-width: min(980px, calc(100vw - 28px)) !important;
-            margin: 16px auto !important;
-        }
-
-        .modal-content,
-        .profileModalContent,
-        .ballotModalContent {
-            border-radius: 22px !important;
-            overflow: hidden !important;
-            max-height: calc(100vh - 32px) !important;
-        }
-
-        .modal-body,
-        .profileModalBody,
-        .requestModalBody {
-            overflow-y: auto !important;
-            max-height: calc(100vh - 190px) !important;
-        }
-
-        .profileModalHeader,
-        .ballotModalHeader {
-            padding: 18px !important;
-        }
-
-        .profileModalAvatar {
-            width: 58px !important;
-            height: 58px !important;
-            font-size: 20px !important;
-        }
-
-        .requestModalBody,
-        .profileModalBody {
-            padding: 18px !important;
-        }
-
-        .requestModalBody .form-control,
-        .requestModalBody .form-select,
-        .profileModalContent .form-control,
-        .profileModalContent .form-select {
-            min-height: 44px !important;
-            border-radius: 16px !important;
-        }
-
-        .requestModalBody textarea.form-control {
-            min-height: 110px !important;
-        }
-
-        .profileModalActions {
-            padding: 12px 18px !important;
-        }
-
-        @media (max-width: 980px) {
-            body.userPage {
-                padding-top: 116px !important;
-            }
-
-            .userTopbar {
-                padding: 9px 14px !important;
-            }
-
-            .userTopbarInner {
-                min-height: 92px !important;
-                grid-template-columns: auto 1fr auto !important;
-                grid-template-rows: auto auto !important;
-                grid-template-areas:
-                    "brand spacer profile"
-                    "nav nav nav" !important;
-                column-gap: 10px !important;
-                row-gap: 9px !important;
-            }
-
-            .brandLink {
-                grid-area: brand !important;
-            }
-
-            .userChip {
-                grid-area: profile !important;
-            }
-
-            .userNavBar {
-                grid-area: nav !important;
-            }
-
-            img.brandLogo,
-            .brandLogo {
-                width: 72px !important;
-                max-width: 72px !important;
-                max-height: 36px !important;
-            }
-
-            .userNavList {
-                gap: 6px !important;
-            }
-
-            .userNavList a {
-                height: 38px !important;
-                min-height: 38px !important;
-                padding: 0 12px !important;
-                font-size: 11.5px !important;
-            }
-        }
-
-        @media (max-width: 640px) {
-            body.userPage {
-                padding-top: 106px !important;
-            }
-
-            .userTopbar {
-                padding: 8px 10px !important;
-            }
-
-            .userTopbarInner {
-                min-height: 88px !important;
-                row-gap: 8px !important;
-            }
-
-            img.brandLogo,
-            .brandLogo {
-                width: 62px !important;
-                max-width: 62px !important;
-                max-height: 32px !important;
-            }
-
-            .userChip {
-                width: 42px !important;
-                height: 42px !important;
-                min-height: 42px !important;
-                max-width: 42px !important;
-                padding: 4px !important;
-                border-radius: 999px !important;
-            }
-
-            .userAvatarCircle {
-                width: 32px !important;
-                height: 32px !important;
-                min-width: 32px !important;
-            }
-
-            .userMeta,
-            .userChip .fa-chevron-down {
-                display: none !important;
-            }
-
-            .userNavList a {
-                height: 36px !important;
-                min-height: 36px !important;
-                padding: 0 10px !important;
-                font-size: 11px !important;
-                gap: 5px !important;
-            }
-
-            .userNavList a i {
-                font-size: 11px !important;
-            }
-
-            .userMain {
-                width: calc(100% - 20px) !important;
-                padding-top: 16px !important;
-            }
-
-            .modal-dialog,
-            #profileModal .modal-dialog,
-            #profileRequestModal .modal-dialog {
-                width: calc(100vw - 20px) !important;
-                max-width: calc(100vw - 20px) !important;
-                margin: 10px auto !important;
-            }
-
-            .modal-content,
-            .profileModalContent,
-            .ballotModalContent {
-                border-radius: 18px !important;
-                max-height: calc(100vh - 20px) !important;
-            }
-
-            .modal-body,
-            .profileModalBody,
-            .requestModalBody {
-                max-height: calc(100vh - 170px) !important;
-                padding: 14px !important;
-            }
-        }
-    </style>
-
-    <style id="ivotephFinalTopbarFix">
-        :root {
-            --ivoteFixedTopbarHeight: 78px;
-        }
-
-        html,
-        body {
-            overflow-x: hidden !important;
-        }
-
-        body.userPage {
-            padding-top: var(--ivoteFixedTopbarHeight, 78px) !important;
-        }
-
-        .userTopbar {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            z-index: 99999 !important;
-            width: 100% !important;
-            min-height: 0 !important;
-            padding: 9px 18px !important;
-            margin: 0 !important;
-            background: rgba(248, 251, 255, 0.97) !important;
-            border: 0 !important;
-            border-bottom: 1px solid #dce5f2 !important;
-            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.08) !important;
-            border-radius: 0 !important;
-            backdrop-filter: blur(16px) !important;
-            -webkit-backdrop-filter: blur(16px) !important;
-            transform: none !important;
-        }
-
-        .userTopbar::before,
-        .userTopbar::after,
-        .userTopbarInner::before,
-        .userTopbarInner::after {
-            display: none !important;
-            content: none !important;
-        }
-
-        .userTopbarInner {
-            width: 100% !important;
-            max-width: 1480px !important;
-            min-height: 50px !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            gap: 14px !important;
-            background: transparent !important;
-            border: 0 !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            overflow: visible !important;
-            transform: none !important;
-        }
-
-        .brandLink,
-        .brandLogoLink,
-        .navbar-brand.brandLogoLink {
-            flex: 0 0 auto !important;
-            order: 1 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            width: auto !important;
-            min-width: 78px !important;
-            height: 50px !important;
-            min-height: 50px !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: transparent !important;
-            border: 0 !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            transform: none !important;
-        }
-
-        .brandLogo,
-        img.brandLogo {
-            display: block !important;
-            width: 74px !important;
-            max-width: 74px !important;
-            height: auto !important;
-            max-height: 38px !important;
-            object-fit: contain !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            filter: none !important;
-            transform: none !important;
-        }
-
-        .topbarSearch,
-        .topbarSearch *,
-        .searchInput,
-        .form-control.searchInput {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            width: 0 !important;
-            min-width: 0 !important;
-            max-width: 0 !important;
-            height: 0 !important;
-            min-height: 0 !important;
-            max-height: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: hidden !important;
-            pointer-events: none !important;
-        }
-
-        .userNavBar {
-            flex: 1 1 auto !important;
-            order: 2 !important;
-            min-width: 0 !important;
-            width: auto !important;
-            max-width: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: transparent !important;
-            border: 0 !important;
-            box-shadow: none !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            scrollbar-width: none !important;
-            -webkit-overflow-scrolling: touch !important;
-            transform: none !important;
-        }
-
-        .userNavBar::-webkit-scrollbar,
-        .userNavInner::-webkit-scrollbar {
-            display: none !important;
-        }
-
-        .userNavInner {
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            scrollbar-width: none !important;
-        }
-
-        .userNavList {
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            gap: 8px !important;
-            width: max-content !important;
-            min-width: max-content !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            list-style: none !important;
-            overflow: visible !important;
-        }
-
-        .userNavList li {
-            flex: 0 0 auto !important;
-            list-style: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .userNavList a {
-            height: 40px !important;
-            min-height: 40px !important;
-            padding: 0 14px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 7px !important;
-            border-radius: 999px !important;
-            background: #f2f5fb !important;
-            border: 0 !important;
-            color: #30394c !important;
-            font-size: 12.5px !important;
-            font-weight: 900 !important;
-            line-height: 1 !important;
-            white-space: nowrap !important;
-            text-decoration: none !important;
-            box-shadow: none !important;
-            transform: none !important;
-        }
-
-        .userNavList a i {
-            font-size: 12.5px !important;
-        }
-
-        .userNavList a:hover {
-            background: #e8f1ff !important;
+            box-shadow: 0 12px 26px rgba(16, 24, 40, 0.08) !important;
             color: #0646a8 !important;
+            font-size: 16px !important;
+            font-weight: 950 !important;
+            text-align: center !important;
         }
 
-        .userNavList a.active {
+        .indexQuickActionsGrid .quickAction i {
+            font-size: 30px !important;
+        }
+
+        .indexQuickActionsGrid .quickAction:hover {
             background: #0b5ed7 !important;
             color: #ffffff !important;
-            box-shadow: 0 8px 18px rgba(6, 70, 168, 0.18) !important;
+            border-color: #0b5ed7 !important;
+            transform: translateY(-3px) !important;
+            box-shadow: 0 18px 34px rgba(6, 70, 168, 0.18) !important;
         }
 
-        .userChip {
-            flex: 0 0 auto !important;
-            order: 3 !important;
-            align-self: center !important;
-            height: 44px !important;
-            min-height: 44px !important;
-            max-width: 285px !important;
-            padding: 5px 12px 5px 5px !important;
-            margin: 0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 9px !important;
-            border-radius: 999px !important;
-            background: #ffffff !important;
-            border: 1px solid #dce5f2 !important;
-            box-shadow: none !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            transform: none !important;
-        }
-
-        .userAvatarCircle {
-            width: 34px !important;
-            height: 34px !important;
-            min-width: 34px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            border-radius: 50% !important;
-            background: #0b5ed7 !important;
-            color: #ffffff !important;
-            font-size: 12px !important;
-            font-weight: 950 !important;
-        }
-
-        .userName {
-            font-size: 11.5px !important;
-            font-weight: 950 !important;
-            line-height: 1.1 !important;
-            color: #101828 !important;
-        }
-
-        .verifiedBadge {
-            font-size: 9.5px !important;
-            font-weight: 850 !important;
-            line-height: 1.1 !important;
-            color: #0b5ed7 !important;
-        }
-
-        .menuButton,
-        .sidebarOverlay,
-        .userSidebar,
-        #sidebar,
-        .sidebar,
-        .sidebarToggle,
-        .dashboardSidebarToggle {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
-        .userMain {
-            width: min(1480px, calc(100% - 44px)) !important;
-            margin: 0 auto !important;
-            padding-top: 22px !important;
-        }
-
-        .modal-dialog {
-            max-width: min(720px, calc(100vw - 24px)) !important;
-            margin: 12px auto !important;
-        }
-
-        .modal-dialog.modal-xl {
-            max-width: min(980px, calc(100vw - 24px)) !important;
-        }
-
-        .modal-content,
-        .profileModalContent,
-        .ballotModalContent {
-            border-radius: 22px !important;
-            max-height: calc(100vh - 24px) !important;
-            overflow: hidden !important;
-        }
-
-        .modal-body,
-        .profileModalBody,
-        .requestModalBody {
-            max-height: calc(100vh - 210px) !important;
-            overflow-y: auto !important;
-        }
-
-        @media (max-width: 1100px) {
-            .userTopbar {
-                padding: 8px 12px !important;
+        @media (max-width: 768px) {
+            .indexQuickActionsGrid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             }
 
-            .userTopbarInner {
-                gap: 10px !important;
-            }
-
-            .brandLink,
-            .brandLogoLink,
-            .navbar-brand.brandLogoLink {
-                min-width: 68px !important;
-                height: 48px !important;
-                min-height: 48px !important;
-            }
-
-            .brandLogo,
-            img.brandLogo {
-                width: 64px !important;
-                max-width: 64px !important;
-                max-height: 34px !important;
-            }
-
-            .userNavList {
-                gap: 6px !important;
-            }
-
-            .userNavList a {
-                height: 38px !important;
-                min-height: 38px !important;
-                padding: 0 12px !important;
-                font-size: 12px !important;
-            }
-
-            .userNavList a i {
-                font-size: 12px !important;
-            }
-
-            .userChip {
-                max-width: 48px !important;
-                width: 44px !important;
-                height: 44px !important;
-                min-height: 44px !important;
-                padding: 5px !important;
-            }
-
-            .userChip .userMeta,
-            .userChip .fa-chevron-down {
-                display: none !important;
+            .indexQuickActionsGrid .quickAction {
+                min-height: 112px !important;
+                font-size: 14px !important;
             }
         }
 
-        @media (max-width: 576px) {
-            .userTopbar {
-                padding: 7px 8px !important;
-            }
-
-            .userTopbarInner {
-                min-height: 44px !important;
-                gap: 7px !important;
-            }
-
-            .brandLink,
-            .brandLogoLink,
-            .navbar-brand.brandLogoLink {
-                min-width: 56px !important;
-                height: 44px !important;
-                min-height: 44px !important;
-            }
-
-            .brandLogo,
-            img.brandLogo {
-                width: 54px !important;
-                max-width: 54px !important;
-                max-height: 28px !important;
-            }
-
-            .userNavList a {
-                height: 34px !important;
-                min-height: 34px !important;
-                padding: 0 10px !important;
-                font-size: 10.5px !important;
-                gap: 5px !important;
-            }
-
-            .userNavList a i {
-                font-size: 10.5px !important;
-            }
-
-            .userChip {
-                width: 38px !important;
-                height: 38px !important;
-                min-height: 38px !important;
-                padding: 3px !important;
-            }
-
-            .userAvatarCircle {
-                width: 30px !important;
-                height: 30px !important;
-                min-width: 30px !important;
-                font-size: 11px !important;
-            }
-
-            .userMain {
-                width: calc(100% - 20px) !important;
-                padding-top: 14px !important;
-            }
-
-            .modal-dialog,
-            .modal-dialog.modal-xl {
-                max-width: calc(100vw - 16px) !important;
-                margin: 8px auto !important;
-            }
-
-            .modal-content,
-            .profileModalContent,
-            .ballotModalContent {
-                border-radius: 18px !important;
-            }
-
-            .modal-body,
-            .profileModalBody,
-            .requestModalBody {
-                max-height: calc(100vh - 180px) !important;
-                overflow-y: auto !important;
+        @media (max-width: 430px) {
+            .indexQuickActionsGrid {
+                grid-template-columns: 1fr !important;
             }
         }
     </style>
-    <style id="ivoteModalOverNavbarHardFix">
-        body.userPage .userTopbar,
-        body.userPage>header.userTopbar,
-        html body.userPage>header.userTopbar {
-            z-index: 1000 !important;
-        }
 
-        body.userPage.modal-open .userTopbar,
-        body.userPage.ivoteModalOpen .userTopbar,
-        body.userPage.modal-open>header.userTopbar,
-        html body.userPage.modal-open>header.userTopbar {
-            z-index: 1 !important;
-        }
-
-        body.userPage .modal-backdrop,
-        body.userPage .modal-backdrop.show {
-            z-index: 999998 !important;
-        }
-
-        body.userPage .modal {
-            z-index: 999999 !important;
-        }
-
-        body.userPage .modal-dialog {
-            position: relative !important;
-            z-index: 1000000 !important;
-        }
-
-        body.userPage .modal-content,
-        body.userPage .profileModalContent,
-        body.userPage .ballotModalContent {
-            max-height: calc(100vh - 32px) !important;
-            overflow: hidden !important;
-            border-radius: 22px !important;
-            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35) !important;
-        }
-
-        body.userPage .modal-body,
-        body.userPage .profileModalBody,
-        body.userPage .requestModalBody {
-            max-height: calc(100vh - 220px) !important;
-            overflow-y: auto !important;
-        }
-
-        @media (max-width: 576px) {
-            body.userPage .modal-dialog {
-                max-width: calc(100vw - 16px) !important;
-                margin: 8px auto !important;
-            }
-
-            body.userPage .modal-content,
-            body.userPage .profileModalContent,
-            body.userPage .ballotModalContent {
-                max-height: calc(100vh - 16px) !important;
-                border-radius: 18px !important;
-            }
-
-            body.userPage .modal-body,
-            body.userPage .profileModalBody,
-            body.userPage .requestModalBody {
-                max-height: calc(100vh - 190px) !important;
-            }
-        }
-    </style>
 </head>
 
 <body class="userPage">
@@ -2166,6 +1335,15 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             <a href="index.php" class="brandLink" aria-label="iVotePH Home">
                 <img src="FINALS 2.png" class="brandLogo" alt="iVotePH">
             </a>
+
+            <div class="topbarSearch">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="search" class="form-control searchInput" placeholder="Search candidates, voting info, or results">
+                </div>
+            </div>
 
             <nav class="userNavBar" aria-label="User navigation">
                 <div class="userNavInner">
@@ -2215,11 +1393,10 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                 </div>
             </nav>
 
-            <button type="button" class="profileNotifBtn" data-bs-toggle="modal"
-                data-bs-target="#profileNotificationModal" title="Profile request notifications">
+            <button type="button" class="profileNotifBtn" data-bs-toggle="modal" data-bs-target="#profileNotificationModal" title="Profile request notifications" aria-label="Profile request notifications">
                 <i class="fa-solid fa-bell"></i>
                 <?php if (isset($profile_notification_count) && $profile_notification_count > 0) { ?>
-                    <span><?php echo number_format($profile_notification_count); ?></span>
+                    <span id="profileNotificationBadge"><?php echo number_format($profile_notification_count); ?></span>
                 <?php } ?>
             </button>
 
@@ -2348,94 +1525,46 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             </div>
         </section>
 
-        <section class="contentGrid">
-            <div class="sectionCard userCard">
-                <div class="sectionHeader">
+        <section class="contentGrid indexQuickActionsSection">
+            <section class="sectionCard userCard indexQuickActionsOnly">
+                <div class="sectionHeader indexQuickActionsHeader">
                     <div>
-                        <h2>Browse Candidates by Position</h2>
+                        <h2>Quick Actions</h2>
                         <p class="mb-0 text-muted">
-                            Review candidates before you cast your ballot.
+                            Use these shortcuts to review candidates, manage your profile, vote, and check updates.
                         </p>
                     </div>
-
-                    <a href="browsecandi.php" class="viewAllLink">
-                        View all
-                        <i class="fa-solid fa-arrow-right ms-1"></i>
-                    </a>
                 </div>
 
-                <div class="positionGrid">
-                    <a class="positionCard" href="browsecandi.php">
-                        <div class="positionIcon">
-                            <i class="fa-solid fa-landmark"></i>
-                        </div>
-                        <div class="positionName">President</div>
-                        <div class="positionAction">
-                            <span>View candidates</span>
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </div>
+                <div class="quickGrid indexQuickActionsGrid">
+                    <a href="browsecandi.php" class="quickAction">
+                        <i class="fa-solid fa-users"></i>
+                        Browse Candidates
                     </a>
 
-                    <a class="positionCard" href="browsecandi.php">
-                        <div class="positionIcon">
-                            <i class="fa-solid fa-user-tie"></i>
-                        </div>
-                        <div class="positionName">Vice President</div>
-                        <div class="positionAction">
-                            <span>View candidates</span>
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </div>
-                    </a>
-
-                    <a class="positionCard" href="browsecandi.php">
-                        <div class="positionIcon">
-                            <i class="fa-solid fa-users"></i>
-                        </div>
-                        <div class="positionName">Senator</div>
-                        <div class="positionAction">
-                            <span>View candidates</span>
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </div>
-                    </a>
-
-                    <a class="positionCard" href="browsecandi.php">
-                        <div class="positionIcon">
-                            <i class="fa-solid fa-city"></i>
-                        </div>
-                        <div class="positionName">Local Officials</div>
-                        <div class="positionAction">
-                            <span>View candidates</span>
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <aside class="sectionCard userCard">
-                <div class="sectionHeader">
-                    <h3>Quick Actions</h3>
-                </div>
-
-                <div class="quickGrid">
                     <button type="button" class="quickAction" data-bs-toggle="modal" data-bs-target="#profileModal">
                         <i class="fa-solid fa-id-card-clip"></i>
                         View Profile
                     </button>
 
-                    <button type="button" class="quickAction" data-bs-toggle="modal"
-                        data-bs-target="#profileRequestModal">
+                    <button type="button" class="quickAction" data-bs-toggle="modal" data-bs-target="#profileRequestModal">
                         <i class="fa-solid fa-pen-to-square"></i>
                         Request Change
                     </button>
 
-                    <a href="about.php" class="quickAction">
-                        <i class="fa-solid fa-circle-info"></i>
-                        About
-                    </a>
-
                     <a href="startvoting.php" class="quickAction">
                         <i class="fa-solid fa-check-to-slot"></i>
                         Voting
+                    </a>
+
+                    <a href="results.php" class="quickAction">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        Results
+                    </a>
+
+                    <a href="about.php" class="quickAction">
+                        <i class="fa-solid fa-circle-info"></i>
+                        About
                     </a>
 
                     <a href="help.php" class="quickAction">
@@ -2443,7 +1572,7 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                         Help
                     </a>
                 </div>
-            </aside>
+            </section>
         </section>
     </main>
 
@@ -2600,8 +1729,7 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
         </div>
     </div>
 
-    <div class="modal fade" id="profileRequestModal" tabindex="-1" aria-labelledby="profileRequestModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="profileRequestModal" tabindex="-1" aria-labelledby="profileRequestModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content profileModalContent">
                 <div class="profileModalHeader">
@@ -2620,11 +1748,10 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                         Submit a request to the admin if your registered name or personal details need correction.
                     </div>
 
-                    <form id="profileChangeRequestForm" method="post" action="submit_profile_request.php"
-                        onsubmit="submitProfileChangeRequest(event)">
+                    <form id="profileChangeRequestForm" onsubmit="submitProfileChangeRequest(event)">
                         <div class="mb-3">
                             <label for="requestField" class="form-label">Information to change</label>
-                            <select class="form-select" id="requestField" name="request_field" required>
+                            <select class="form-select" id="requestField" required>
                                 <option value="">Select information</option>
                                 <option value="Full Name">Full Name</option>
                                 <option value="Email Address">Email Address</option>
@@ -2638,8 +1765,7 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
 
                         <div class="mb-3">
                             <label for="requestMessage" class="form-label">Reason / Correct Information</label>
-                            <textarea class="form-control" id="requestMessage" name="request_message" rows="4" required
-                                placeholder="Example: My registered last name is misspelled. It should be Dela Cruz."></textarea>
+                            <textarea class="form-control" id="requestMessage" rows="4" required placeholder="Example: My registered last name is misspelled. It should be Dela Cruz."></textarea>
                         </div>
 
                         <div class="d-grid gap-2">
@@ -2653,6 +1779,73 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="profileNotificationModal" tabindex="-1" aria-labelledby="profileNotificationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content profileModalContent">
+                <div class="profileModalHeader">
+                    <div class="profileModalAvatar">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                    <h5 id="profileNotificationModalLabel">Notifications</h5>
+                    <p>Your profile request updates from the admin side.</p>
+                </div>
+
+                <div class="requestModalBody">
+                    <?php if (!isset($profile_notifications) || count($profile_notifications) === 0) { ?>
+                        <div class="requestNotice mb-0">
+                            <i class="fa-solid fa-circle-info me-2"></i>
+                            You do not have profile request notifications yet.
+                        </div>
+                    <?php } else { ?>
+                        <div class="profileNotifList">
+                            <?php foreach ($profile_notifications as $notification) { ?>
+                                <div class="profileNotifItem <?php echo (($notification['user_seen_at'] === null || trim((string) $notification['user_seen_at']) === '') && ($notification['request_status'] === 'Approved' || $notification['request_status'] === 'Rejected' || $notification['request_status'] === 'Resolved')) ? 'profileNotifUnread' : ''; ?>">
+                                    <div class="profileNotifTop">
+                                        <div>
+                                            <strong><?php echo ivoteph_h($notification['request_field']); ?></strong>
+                                            <small>
+                                                Submitted:
+                                                <?php echo ivoteph_h(ivoteph_profile_notif_date($notification['created_at'])); ?>
+                                            </small>
+                                        </div>
+
+                                        <span class="badge text-bg-<?php echo ivoteph_profile_notif_badge_class($notification['request_status']); ?>">
+                                            <?php echo ivoteph_h($notification['request_status']); ?>
+                                        </span>
+                                    </div>
+
+                                    <div class="profileNotifText">
+                                        <strong>Your request:</strong><br>
+                                        <?php echo nl2br(ivoteph_h($notification['request_message'])); ?>
+                                    </div>
+
+                                    <?php if ($notification['admin_response'] !== null && trim((string) $notification['admin_response']) !== '') { ?>
+                                        <div class="profileNotifResponse">
+                                            <strong>Admin response:</strong><br>
+                                            <?php echo nl2br(ivoteph_h($notification['admin_response'])); ?>
+
+                                            <?php if ($notification['reviewed_at'] !== null && trim((string) $notification['reviewed_at']) !== '') { ?>
+                                                <small>
+                                                    Reviewed:
+                                                    <?php echo ivoteph_h(ivoteph_profile_notif_date($notification['reviewed_at'])); ?>
+                                                </small>
+                                            <?php } ?>
+                                        </div>
+                                    <?php } else { ?>
+                                        <div class="profileNotifPending">
+                                            <i class="fa-solid fa-clock me-1"></i>
+                                            Waiting for admin response.
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    <?php } ?>
                 </div>
             </div>
         </div>
@@ -2738,730 +1931,48 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script id="ivotephFinalTopbarOffset">
-        function ivotephUpdateFixedTopbarOffset() {
-            var topbar = document.querySelector('.userTopbar');
-            if (!topbar) {
-                return;
-            }
-            document.documentElement.style.setProperty('--ivoteFixedTopbarHeight', topbar.offsetHeight + 'px');
-        }
-
-        window.addEventListener('load', ivotephUpdateFixedTopbarOffset);
-        window.addEventListener('resize', ivotephUpdateFixedTopbarOffset);
-        setTimeout(ivotephUpdateFixedTopbarOffset, 50);
-    </script>
-    <script>
-        document.addEventListener('show.bs.modal', function () {
-            document.body.classList.add('ivoteModalOpen');
-        });
-
-        document.addEventListener('hidden.bs.modal', function () {
-            var openModals = document.querySelectorAll('.modal.show');
-
-            if (openModals.length === 0) {
-                document.body.classList.remove('ivoteModalOpen');
-            }
-        });
-    </script>
-    <script>
-        document.addEventListener('shown.bs.modal', function (event) {
-            document.body.classList.add('ivoteModalOpen');
-
-            var modal = event.target;
-            var dialog = modal.querySelector('.modal-dialog');
-            var content = modal.querySelector('.modal-content');
-
-            modal.style.zIndex = '1055';
-
-            if (dialog) {
-                dialog.style.zIndex = '1065';
-                dialog.style.pointerEvents = 'auto';
-            }
-
-            if (content) {
-                content.style.zIndex = '1070';
-                content.style.pointerEvents = 'auto';
-            }
-
-            var backdrops = document.querySelectorAll('.modal-backdrop');
-
-            for (var i = 0; i < backdrops.length; i++) {
-                backdrops[i].style.zIndex = '1040';
-                backdrops[i].style.pointerEvents = 'none';
-            }
-        });
-
-        document.addEventListener('hidden.bs.modal', function () {
-            if (document.querySelectorAll('.modal.show').length === 0) {
-                document.body.classList.remove('ivoteModalOpen');
-            }
-        });
-    </script>
-    <style id="ivoteIndexModalFinalFix">
-        body.userPage.modal-open,
-        body.userPage.ivoteModalOpen {
-            overflow: hidden !important;
-            padding-right: 0 !important;
-        }
-
-        body.userPage .modal-backdrop,
-        body.userPage .modal-backdrop.show {
-            display: none !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-            z-index: -9999 !important;
-        }
-
-        body.userPage .modal {
-            position: fixed !important;
-            inset: 0 !important;
-            z-index: 2147483000 !important;
-            padding: 18px !important;
-            background: rgba(15, 23, 42, 0.62) !important;
-            overflow-x: hidden !important;
-            overflow-y: auto !important;
-            pointer-events: auto !important;
-            opacity: 1 !important;
-        }
-
-        body.userPage .modal:not(.show) {
-            display: none !important;
-        }
-
-        body.userPage .modal.show {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        body.userPage .modal-dialog {
-            position: relative !important;
-            z-index: 2147483001 !important;
-            width: 100% !important;
-            margin: auto !important;
-            pointer-events: auto !important;
-            transform: none !important;
-        }
-
-        body.userPage #profileModal .modal-dialog {
-            max-width: min(980px, calc(100vw - 24px)) !important;
-        }
-
-        body.userPage #profileRequestModal .modal-dialog {
-            max-width: min(560px, calc(100vw - 24px)) !important;
-        }
-
-        body.userPage .modal-content,
-        body.userPage .profileModalContent {
-            position: relative !important;
-            z-index: 2147483002 !important;
-            pointer-events: auto !important;
-            background: #ffffff !important;
-            opacity: 1 !important;
-            filter: none !important;
-            max-height: calc(100vh - 36px) !important;
-            overflow: hidden !important;
-            border-radius: 22px !important;
-            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35) !important;
-        }
-
-        body.userPage .modal-content *,
-        body.userPage .profileModalContent * {
-            pointer-events: auto !important;
-            user-select: auto !important;
-        }
-
-        body.userPage .profileModalBody,
-        body.userPage .requestModalBody {
-            max-height: calc(100vh - 220px) !important;
-            overflow-y: auto !important;
-        }
-
-        body.userPage.modal-open .userTopbar,
-        body.userPage.ivoteModalOpen .userTopbar {
-            z-index: 1 !important;
-        }
-
-        #ivoteNoticeOverlay {
-            position: fixed !important;
-            inset: 0 !important;
-            z-index: 2147483100 !important;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 18px;
-            background: rgba(15, 23, 42, 0.62);
-        }
-
-        #ivoteNoticeOverlay.show {
-            display: flex !important;
-        }
-
-        .ivoteNoticeBox {
-            width: min(520px, 100%);
-            background: #ffffff;
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 30px 90px rgba(16, 24, 40, 0.35);
-        }
-
-        .ivoteNoticeHeader {
-            padding: 22px 24px;
-            background: linear-gradient(135deg, #0647b8, #0b63e5);
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .ivoteNoticeHeader i {
-            width: 46px;
-            height: 46px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.18);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .ivoteNoticeHeader h3 {
-            margin: 0;
-            font-size: 22px;
-            font-weight: 950;
-        }
-
-        .ivoteNoticeBody {
-            padding: 24px;
-            color: #344054;
-            font-size: 16px;
-            line-height: 1.6;
-        }
-
-        .ivoteNoticeFooter {
-            padding: 0 24px 24px;
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .ivoteNoticeBtn {
-            border: 0;
-            border-radius: 999px;
-            background: #0647b8;
-            color: #ffffff;
-            font-weight: 950;
-            padding: 13px 28px;
-            min-width: 120px;
-            box-shadow: 0 12px 26px rgba(6, 71, 184, 0.28);
-        }
-
-        .ivoteNoticeBtn:hover {
-            background: #033587;
-        }
-
-        @media (max-width: 576px) {
-            body.userPage .modal {
-                padding: 8px !important;
-            }
-
-            body.userPage .modal-content,
-            body.userPage .profileModalContent {
-                max-height: calc(100vh - 16px) !important;
-                border-radius: 18px !important;
-            }
-
-            body.userPage .profileModalBody,
-            body.userPage .requestModalBody {
-                max-height: calc(100vh - 190px) !important;
-            }
-        }
-    </style>
-
-    <script id="ivoteIndexModalFinalFixScript">
+    <script id="ivoteProfileNotificationSeenFix">
         (function () {
-            function removeBootstrapBackdrops() {
-                var backdrops = document.querySelectorAll('.modal-backdrop');
+            var notificationButton = document.querySelector('.profileNotifBtn');
+            var notificationModal = document.getElementById('profileNotificationModal');
+            var currentVoterId = <?php echo json_encode($profile_voter_id); ?>;
+            var unseenCount = <?php echo isset($profile_notification_count) ? (int) $profile_notification_count : 0; ?>;
+            var hasMarkedSeen = false;
 
-                for (var i = 0; i < backdrops.length; i++) {
-                    backdrops[i].parentNode.removeChild(backdrops[i]);
-                }
+            function hideNotificationBadge() {
+                var badge = document.getElementById('profileNotificationBadge');
 
-                document.body.style.paddingRight = '';
-            }
-
-            function getModalElement(modalTarget) {
-                if (!modalTarget) {
-                    return null;
-                }
-
-                if (typeof modalTarget === 'string') {
-                    return document.getElementById(modalTarget.replace('#', ''));
-                }
-
-                return modalTarget;
-            }
-
-            function openIvoteModal(modalTarget) {
-                var modal = getModalElement(modalTarget);
-
-                if (!modal) {
-                    return;
-                }
-
-                removeBootstrapBackdrops();
-
-                var openModals = document.querySelectorAll('.modal.show');
-
-                for (var i = 0; i < openModals.length; i++) {
-                    if (openModals[i] !== modal) {
-                        closeIvoteModal(openModals[i], false);
-                    }
-                }
-
-                modal.classList.add('show');
-                modal.removeAttribute('aria-hidden');
-                modal.setAttribute('aria-modal', 'true');
-                modal.setAttribute('role', 'dialog');
-                modal.style.display = 'flex';
-
-                document.body.classList.add('modal-open');
-                document.body.classList.add('ivoteModalOpen');
-                document.body.style.overflow = 'hidden';
-
-                setTimeout(function () {
-                    var focusable = modal.querySelector('select, input, textarea, button, a[href]');
-
-                    if (focusable) {
-                        focusable.focus({ preventScroll: true });
-                    }
-                }, 30);
-            }
-
-            function closeIvoteModal(modalTarget, restoreBody) {
-                var modal = getModalElement(modalTarget);
-
-                if (!modal) {
-                    return;
-                }
-
-                modal.classList.remove('show');
-                modal.setAttribute('aria-hidden', 'true');
-                modal.removeAttribute('aria-modal');
-                modal.style.display = 'none';
-
-                removeBootstrapBackdrops();
-
-                if (restoreBody !== false && document.querySelectorAll('.modal.show').length === 0) {
-                    document.body.classList.remove('modal-open');
-                    document.body.classList.remove('ivoteModalOpen');
-                    document.body.style.overflow = '';
+                if (badge) {
+                    badge.parentNode.removeChild(badge);
                 }
             }
 
-            function ensureNoticeOverlay() {
-                var existing = document.getElementById('ivoteNoticeOverlay');
-
-                if (existing) {
-                    return existing;
+            function markNotificationsSeen() {
+                if (hasMarkedSeen || unseenCount <= 0) {
+                    hideNotificationBadge();
+                    return;
                 }
 
-                var overlay = document.createElement('div');
-                overlay.id = 'ivoteNoticeOverlay';
-                overlay.innerHTML =
-                    '<div class="ivoteNoticeBox">' +
-                    '<div class="ivoteNoticeHeader">' +
-                    '<i class="fa-solid fa-circle-exclamation"></i>' +
-                    '<h3 id="ivoteNoticeTitle">Action Needed</h3>' +
-                    '</div>' +
-                    '<div class="ivoteNoticeBody" id="ivoteNoticeMessage">Please complete the required action.</div>' +
-                    '<div class="ivoteNoticeFooter">' +
-                    '<button type="button" class="ivoteNoticeBtn" onclick="closeIvoteNotice()">Okay</button>' +
-                    '</div>' +
-                    '</div>';
+                hasMarkedSeen = true;
+                hideNotificationBadge();
 
-                document.body.appendChild(overlay);
-                return overlay;
+                var formData = new FormData();
+                formData.append('action', 'mark_profile_notifications_seen');
+                formData.append('voter_id', currentVoterId);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'submit_profile_request.php', true);
+                xhr.send(formData);
             }
 
-            window.showIvoteNotice = function (message, title) {
-                var overlay = ensureNoticeOverlay();
-                var titleBox = document.getElementById('ivoteNoticeTitle');
-                var messageBox = document.getElementById('ivoteNoticeMessage');
+            if (notificationButton) {
+                notificationButton.addEventListener('click', markNotificationsSeen);
+            }
 
-                titleBox.textContent = title || 'Action Needed';
-                messageBox.textContent = message || 'Please complete the required action.';
-
-                overlay.classList.add('show');
-                document.body.classList.add('ivoteModalOpen');
-            };
-
-            window.closeIvoteNotice = function () {
-                var overlay = document.getElementById('ivoteNoticeOverlay');
-
-                if (overlay) {
-                    overlay.classList.remove('show');
-                }
-
-                if (document.querySelectorAll('.modal.show').length === 0) {
-                    document.body.classList.remove('modal-open');
-                    document.body.classList.remove('ivoteModalOpen');
-                    document.body.style.overflow = '';
-                }
-            };
-
-            window.alert = function (message) {
-                showIvoteNotice(message, 'Action Needed');
-            };
-
-            window.ivoteOpenModal = openIvoteModal;
-            window.ivoteCloseModal = closeIvoteModal;
-
-            window.openProfileRequestModal = function () {
-                closeIvoteModal('profileModal', false);
-
-                setTimeout(function () {
-                    openIvoteModal('profileRequestModal');
-                }, 120);
-            };
-
-            window.submitProfileChangeRequest = function (event) {
-                event.preventDefault();
-
-                var requestField = document.getElementById('requestField');
-                var requestMessage = document.getElementById('requestMessage');
-
-                if (!requestField || !requestMessage || !requestField.value || !requestMessage.value.trim()) {
-                    showIvoteNotice('Please select the information to change and enter your correction details.', 'Incomplete Request');
-                    return;
-                }
-
-                showIvoteNotice('Your profile change request has been prepared.', 'Request Prepared');
-
-                var form = document.getElementById('profileChangeRequestForm');
-
-                if (form) {
-                    form.reset();
-                }
-
-                closeIvoteModal('profileRequestModal');
-            };
-
-            window.logoutUser = function () {
-                window.location.href = 'logout.php';
-            };
-
-            document.addEventListener('DOMContentLoaded', function () {
-                removeBootstrapBackdrops();
-            });
-
-            document.addEventListener('click', function (event) {
-                var modalOpener = event.target.closest('[data-bs-toggle="modal"][data-bs-target]');
-
-                if (modalOpener) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-
-                    openIvoteModal(modalOpener.getAttribute('data-bs-target'));
-                    return;
-                }
-
-                var modalCloser = event.target.closest('[data-bs-dismiss="modal"]');
-
-                if (modalCloser) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-
-                    var parentModal = modalCloser.closest('.modal');
-
-                    if (parentModal) {
-                        closeIvoteModal(parentModal);
-                    }
-
-                    return;
-                }
-
-                if (event.target.classList && event.target.classList.contains('modal')) {
-                    closeIvoteModal(event.target);
-                }
-            }, true);
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape') {
-                    var notice = document.getElementById('ivoteNoticeOverlay');
-
-                    if (notice && notice.classList.contains('show')) {
-                        closeIvoteNotice();
-                        return;
-                    }
-
-                    var openModals = document.querySelectorAll('.modal.show');
-
-                    if (openModals.length > 0) {
-                        closeIvoteModal(openModals[openModals.length - 1]);
-                    }
-                }
-            });
+            if (notificationModal) {
+                notificationModal.addEventListener('shown.bs.modal', markNotificationsSeen);
+            }
         })();
-    </script>
-    <script>
-        window.submitProfileChangeRequest = function (event) {
-            event.preventDefault();
-
-            var form = document.getElementById('profileChangeRequestForm');
-            var requestField = document.getElementById('requestField');
-            var requestMessage = document.getElementById('requestMessage');
-
-            if (!form || !requestField || !requestMessage) {
-                alert('Profile request form was not found.');
-                return false;
-            }
-
-            if (!requestField.value || !requestMessage.value.trim()) {
-                alert('Please select the information to change and enter your correction details.');
-                return false;
-            }
-
-            var submitButton = form.querySelector('button[type="submit"]');
-            var originalButtonText = '';
-
-            if (submitButton) {
-                originalButtonText = submitButton.innerHTML;
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Submitting...';
-            }
-
-            var formData = new FormData();
-            formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
-            formData.append('request_field', requestField.value);
-            formData.append('request_message', requestMessage.value);
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'submit_profile_request.php', true);
-
-            xhr.onload = function () {
-                var response;
-
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
-                }
-
-                try {
-                    response = JSON.parse(xhr.responseText);
-                } catch (error) {
-                    alert('Invalid server response. Check submit_profile_request.php.');
-                    return;
-                }
-
-                if (response.success) {
-                    form.reset();
-
-                    var requestModalElement = document.getElementById('profileRequestModal');
-
-                    if (typeof ivoteCloseModal === 'function') {
-                        ivoteCloseModal('profileRequestModal');
-                    } else if (window.bootstrap && requestModalElement) {
-                        var requestModal = bootstrap.Modal.getInstance(requestModalElement);
-
-                        if (requestModal) {
-                            requestModal.hide();
-                        }
-                    }
-
-                    alert(response.message);
-                } else {
-                    alert(response.message);
-                }
-            };
-
-            xhr.onerror = function () {
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
-                }
-
-                alert('Connection error. Please try again.');
-            };
-
-            xhr.send(formData);
-
-            return false;
-        };
-    </script>
-
-
-    <div class="modal fade" id="profileNotificationModal" tabindex="-1" aria-labelledby="profileNotificationModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content profileModalContent">
-                <div class="profileModalHeader">
-                    <div class="profileModalAvatar">
-                        <i class="fa-solid fa-bell"></i>
-                    </div>
-                    <h5 id="profileNotificationModalLabel">Notifications</h5>
-                    <p>Your profile request updates from the admin side.</p>
-                </div>
-
-                <div class="requestModalBody">
-                    <?php if (!isset($profile_notifications) || count($profile_notifications) === 0) { ?>
-                        <div class="requestNotice mb-0">
-                            <i class="fa-solid fa-circle-info me-2"></i>
-                            You do not have profile request notifications yet.
-                        </div>
-                    <?php } else { ?>
-                        <div class="profileNotifList">
-                            <?php foreach ($profile_notifications as $notification) { ?>
-                                <div class="profileNotifItem">
-                                    <div class="profileNotifTop">
-                                        <div>
-                                            <strong><?php echo ivoteph_h($notification['request_field']); ?></strong>
-                                            <small>
-                                                Submitted:
-                                                <?php echo ivoteph_h(ivoteph_profile_request_date($notification['created_at'])); ?>
-                                            </small>
-                                        </div>
-
-                                        <span
-                                            class="badge text-bg-<?php echo ivoteph_profile_request_badge_class($notification['request_status']); ?>">
-                                            <?php echo ivoteph_h($notification['request_status']); ?>
-                                        </span>
-                                    </div>
-
-                                    <div class="profileNotifText">
-                                        <strong>Your request:</strong><br>
-                                        <?php echo nl2br(ivoteph_h($notification['request_message'])); ?>
-                                    </div>
-
-                                    <?php if ($notification['admin_response'] !== null && trim((string) $notification['admin_response']) !== '') { ?>
-                                        <div class="profileNotifResponse">
-                                            <strong>Admin response:</strong><br>
-                                            <?php echo nl2br(ivoteph_h($notification['admin_response'])); ?>
-
-                                            <?php if ($notification['reviewed_at'] !== null && trim((string) $notification['reviewed_at']) !== '') { ?>
-                                                <small>
-                                                    Reviewed:
-                                                    <?php echo ivoteph_h(ivoteph_profile_request_date($notification['reviewed_at'])); ?>
-                                                </small>
-                                            <?php } ?>
-                                        </div>
-                                    <?php } else { ?>
-                                        <div class="profileNotifPending">
-                                            <i class="fa-solid fa-clock me-1"></i>
-                                            Waiting for admin response.
-                                        </div>
-                                    <?php } ?>
-                                </div>
-                            <?php } ?>
-                        </div>
-                    <?php } ?>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <script id="ivoteProfileRequestFinalSubmitFix">
-        window.submitProfileChangeRequest = function (event) {
-            event.preventDefault();
-
-            var form = document.getElementById('profileChangeRequestForm');
-            var requestField = document.getElementById('requestField');
-            var requestMessage = document.getElementById('requestMessage');
-
-            if (!form || !requestField || !requestMessage) {
-                alert('Profile request form was not found.');
-                return false;
-            }
-
-            if (!requestField.value || !requestMessage.value.trim()) {
-                if (typeof showIvoteNotice === 'function') {
-                    showIvoteNotice('Please select the information to change and enter your correction details.', 'Incomplete Request');
-                } else {
-                    alert('Please select the information to change and enter your correction details.');
-                }
-
-                return false;
-            }
-
-            var submitButton = form.querySelector('button[type="submit"]');
-            var originalButtonText = '';
-
-            if (submitButton) {
-                originalButtonText = submitButton.innerHTML;
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Submitting...';
-            }
-
-            var formData = new FormData();
-            formData.append('voter_id', <?php echo json_encode($profile_voter_id); ?>);
-            formData.append('request_field', requestField.value);
-            formData.append('request_message', requestMessage.value.trim());
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'submit_profile_request.php', true);
-
-            xhr.onload = function () {
-                var response = null;
-
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
-                }
-
-                try {
-                    response = JSON.parse(xhr.responseText);
-                } catch (error) {
-                    alert('Invalid server response. Please check submit_profile_request.php.');
-                    return;
-                }
-
-                if (response.success) {
-                    form.reset();
-
-                    if (typeof ivoteCloseModal === 'function') {
-                        ivoteCloseModal('profileRequestModal');
-                    } else if (window.bootstrap) {
-                        var requestModalElement = document.getElementById('profileRequestModal');
-                        var requestModal = requestModalElement ? bootstrap.Modal.getInstance(requestModalElement) : null;
-
-                        if (requestModal) {
-                            requestModal.hide();
-                        }
-                    }
-
-                    if (typeof showIvoteNotice === 'function') {
-                        showIvoteNotice(response.message, 'Request Submitted');
-                    } else {
-                        alert(response.message);
-                    }
-
-                    setTimeout(function () {
-                        window.location.reload();
-                    }, 900);
-                } else {
-                    if (typeof showIvoteNotice === 'function') {
-                        showIvoteNotice(response.message, 'Request Failed');
-                    } else {
-                        alert(response.message);
-                    }
-                }
-            };
-
-            xhr.onerror = function () {
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
-                }
-
-                alert('Connection error. Please try again.');
-            };
-
-            xhr.send(formData);
-            return false;
-        };
     </script>
 
 </body>

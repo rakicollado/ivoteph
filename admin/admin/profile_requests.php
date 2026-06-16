@@ -784,12 +784,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                     <strong><?php echo pcr_admin_h($address); ?></strong>
                                 </div>
 
-                                <div class="profileRequestInfoBox">
-                                    <span>Reviewed</span>
-                                    <strong><?php echo pcr_admin_h(pcr_admin_format_datetime($request['reviewed_at'])); ?></strong>
-                                    <div class="profileRequestSubtext"><?php echo pcr_admin_h($request['reviewed_by']); ?></div>
-                                </div>
-
                                 <div class="profileRequestInfoBox profileRequestWide">
                                     <span>Request details</span>
                                     <strong><?php echo nl2br(pcr_admin_h($request['request_message'])); ?></strong>
@@ -802,7 +796,7 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
                                 <div>
                                     <label class="form-label">Admin response / user notification message</label>
-                                    <textarea name="admin_response" class="form-control" rows="4"
+                                    <textarea name="admin_response" class="form-control"
                                         placeholder="Example: Your request has been approved and your profile information has been updated."><?php echo pcr_admin_h($request['admin_response']); ?></textarea>
                                 </div>
 
