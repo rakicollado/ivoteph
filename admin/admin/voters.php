@@ -89,14 +89,9 @@ function voter_form_fields($voter, $is_edit)
         <div class="row g-3">
             <div class="col-md-4">
                 <label class="form-label">Voter ID *</label>
-                <input
-                    type="text"
-                    name="voter_id"
-                    class="form-control"
-                    value="<?php echo e(isset($voter['voter_id']) ? $voter['voter_id'] : ''); ?>"
-                    placeholder="PHV-2025-000"
-                    <?php echo $is_edit ? 'readonly' : 'required'; ?>
-                >
+                <input type="text" name="voter_id" class="form-control"
+                    value="<?php echo e(isset($voter['voter_id']) ? $voter['voter_id'] : ''); ?>" placeholder="PHV-2025-000"
+                    <?php echo $is_edit ? 'readonly' : 'required'; ?>>
             </div>
 
             <div class="col-md-4">
@@ -116,22 +111,26 @@ function voter_form_fields($voter, $is_edit)
         <div class="row g-3">
             <div class="col-md-4">
                 <label class="form-label">First Name</label>
-                <input type="text" name="first_name" class="form-control" value="<?php echo e(isset($voter['first_name']) ? $voter['first_name'] : ''); ?>">
+                <input type="text" name="first_name" class="form-control"
+                    value="<?php echo e(isset($voter['first_name']) ? $voter['first_name'] : ''); ?>">
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Middle Name</label>
-                <input type="text" name="middle_name" class="form-control" value="<?php echo e(isset($voter['middle_name']) ? $voter['middle_name'] : ''); ?>">
+                <input type="text" name="middle_name" class="form-control"
+                    value="<?php echo e(isset($voter['middle_name']) ? $voter['middle_name'] : ''); ?>">
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Last Name</label>
-                <input type="text" name="last_name" class="form-control" value="<?php echo e(isset($voter['last_name']) ? $voter['last_name'] : ''); ?>">
+                <input type="text" name="last_name" class="form-control"
+                    value="<?php echo e(isset($voter['last_name']) ? $voter['last_name'] : ''); ?>">
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Birth Date</label>
-                <input type="date" name="birth_date" class="form-control" value="<?php echo e(isset($voter['birth_date']) ? $voter['birth_date'] : ''); ?>">
+                <input type="date" name="birth_date" class="form-control"
+                    value="<?php echo e(isset($voter['birth_date']) ? $voter['birth_date'] : ''); ?>">
             </div>
 
             <div class="col-md-4">
@@ -145,12 +144,15 @@ function voter_form_fields($voter, $is_edit)
 
             <div class="col-md-4">
                 <label class="form-label">Mobile Number</label>
-                <input type="text" name="mobile_number" class="form-control" value="<?php echo e(isset($voter['mobile_number']) ? $voter['mobile_number'] : ''); ?>" placeholder="09171234567">
+                <input type="text" name="mobile_number" class="form-control"
+                    value="<?php echo e(isset($voter['mobile_number']) ? $voter['mobile_number'] : ''); ?>"
+                    placeholder="09171234567">
             </div>
 
             <div class="col-md-6">
                 <label class="form-label">Email Address</label>
-                <input type="email" name="email" class="form-control" value="<?php echo e(isset($voter['email']) ? $voter['email'] : ''); ?>">
+                <input type="email" name="email" class="form-control"
+                    value="<?php echo e(isset($voter['email']) ? $voter['email'] : ''); ?>">
             </div>
         </div>
     </div>
@@ -161,27 +163,32 @@ function voter_form_fields($voter, $is_edit)
         <div class="row g-3">
             <div class="col-md-3">
                 <label class="form-label">Region</label>
-                <input type="text" name="region" class="form-control" value="<?php echo e(isset($voter['region']) ? $voter['region'] : ''); ?>">
+                <input type="text" name="region" class="form-control"
+                    value="<?php echo e(isset($voter['region']) ? $voter['region'] : ''); ?>">
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">Province</label>
-                <input type="text" name="province" class="form-control" value="<?php echo e(isset($voter['province']) ? $voter['province'] : ''); ?>">
+                <input type="text" name="province" class="form-control"
+                    value="<?php echo e(isset($voter['province']) ? $voter['province'] : ''); ?>">
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">City / Municipality</label>
-                <input type="text" name="city_municipality" class="form-control" value="<?php echo e(isset($voter['city']) ? $voter['city'] : ''); ?>">
+                <input type="text" name="city_municipality" class="form-control"
+                    value="<?php echo e(isset($voter['city']) ? $voter['city'] : ''); ?>">
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">Barangay</label>
-                <input type="text" name="barangay" class="form-control" value="<?php echo e(isset($voter['barangay']) ? $voter['barangay'] : ''); ?>">
+                <input type="text" name="barangay" class="form-control"
+                    value="<?php echo e(isset($voter['barangay']) ? $voter['barangay'] : ''); ?>">
             </div>
 
             <div class="col-md-12">
                 <label class="form-label">Specific Address</label>
-                <input type="text" name="specific_address" class="form-control" value="<?php echo e(isset($voter['specific_address']) ? $voter['specific_address'] : ''); ?>">
+                <input type="text" name="specific_address" class="form-control"
+                    value="<?php echo e(isset($voter['specific_address']) ? $voter['specific_address'] : ''); ?>">
             </div>
         </div>
     </div>
@@ -441,8 +448,14 @@ $where = array();
 $params = array();
 
 if ($search != '') {
-    $where[] = "(rv.voter_id LIKE :search OR rv.first_name LIKE :search OR rv.middle_name LIKE :search OR rv.last_name LIKE :search OR rv.email LIKE :search OR rv.mobile_number LIKE :search)";
-    $params[':search'] = '%' . $search . '%';
+    $where[] = "(rv.voter_id LIKE :search1 OR rv.first_name LIKE :search2 OR rv.middle_name LIKE :search3 OR rv.last_name LIKE :search4 OR rv.email LIKE :search5 OR rv.mobile_number LIKE :search6)";
+    $search_like = '%' . $search . '%';
+    $params[':search1'] = $search_like;
+    $params[':search2'] = $search_like;
+    $params[':search3'] = $search_like;
+    $params[':search4'] = $search_like;
+    $params[':search5'] = $search_like;
+    $params[':search6'] = $search_like;
 }
 
 if ($status != '') {
@@ -471,7 +484,7 @@ $count_sql = "
 $count_stmt = $pdo->prepare($count_sql);
 
 foreach ($params as $key => $value) {
-    $count_stmt->bindValue($key, $value);
+    $count_stmt->bindValue($key, $value, PDO::PARAM_STR);
 }
 
 $count_stmt->execute();
@@ -513,7 +526,7 @@ $sql = "
 $stmt = $pdo->prepare($sql);
 
 foreach ($params as $key => $value) {
-    $stmt->bindValue($key, $value);
+    $stmt->bindValue($key, $value, PDO::PARAM_STR);
 }
 
 $stmt->bindValue(':limit', (int) $per_page, PDO::PARAM_INT);
@@ -544,18 +557,23 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         <form method="GET" action="voters.php" class="ivote-filter-form">
             <div>
                 <label class="form-label">Search</label>
-                <input type="text" name="search" class="form-control" value="<?php echo e($search); ?>" placeholder="Search voter ID, name, email, or mobile number">
+                <input type="text" name="search" class="form-control" value="<?php echo e($search); ?>"
+                    placeholder="Search voter ID, name, email, or mobile number">
             </div>
 
             <div>
                 <label class="form-label">Status</label>
                 <select name="status" class="form-select">
                     <option value="">All statuses</option>
-                    <option value="Registered" <?php echo ($status == 'Registered') ? 'selected' : ''; ?>>Registered</option>
-                    <option value="Unregistered" <?php echo ($status == 'Unregistered') ? 'selected' : ''; ?>>Unregistered</option>
+                    <option value="Registered" <?php echo ($status == 'Registered') ? 'selected' : ''; ?>>Registered
+                    </option>
+                    <option value="Unregistered" <?php echo ($status == 'Unregistered') ? 'selected' : ''; ?>>Unregistered
+                    </option>
                     <option value="Blocked" <?php echo ($status == 'Blocked') ? 'selected' : ''; ?>>Blocked</option>
-                    <option value="Complete" <?php echo ($status == 'Complete') ? 'selected' : ''; ?>>Complete Profile</option>
-                    <option value="Incomplete" <?php echo ($status == 'Incomplete') ? 'selected' : ''; ?>>Incomplete Profile</option>
+                    <option value="Complete" <?php echo ($status == 'Complete') ? 'selected' : ''; ?>>Complete Profile
+                    </option>
+                    <option value="Incomplete" <?php echo ($status == 'Incomplete') ? 'selected' : ''; ?>>Incomplete
+                        Profile</option>
                 </select>
             </div>
 
@@ -607,12 +625,12 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     <?php if (count($voters) > 0) { ?>
                         <?php foreach ($voters as $voter) { ?>
                             <?php
-                                $full_name = voter_display_name($voter);
-                                $birth_display = voter_display_birthdate($voter['birth_date']);
-                                $address_line = voter_display_address($voter);
-                                $view_modal = voter_modal_id($voter['voter_id'], 'viewVoter');
-                                $edit_modal = voter_modal_id($voter['voter_id'], 'editVoter');
-                                $delete_modal = voter_modal_id($voter['voter_id'], 'deleteVoter');
+                            $full_name = voter_display_name($voter);
+                            $birth_display = voter_display_birthdate($voter['birth_date']);
+                            $address_line = voter_display_address($voter);
+                            $view_modal = voter_modal_id($voter['voter_id'], 'viewVoter');
+                            $edit_modal = voter_modal_id($voter['voter_id'], 'editVoter');
+                            $delete_modal = voter_modal_id($voter['voter_id'], 'deleteVoter');
                             ?>
 
                             <tr>
@@ -631,7 +649,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
                                 <td>
                                     <div><?php echo e($voter['email'] ? $voter['email'] : '-'); ?></div>
-                                    <small class="text-muted"><?php echo e($voter['mobile_number'] ? $voter['mobile_number'] : 'No mobile'); ?></small>
+                                    <small
+                                        class="text-muted"><?php echo e($voter['mobile_number'] ? $voter['mobile_number'] : 'No mobile'); ?></small>
                                 </td>
 
                                 <td>
@@ -658,15 +677,18 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                 </td>
 
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-ivote-icon" data-bs-toggle="modal" data-bs-target="#<?php echo e($view_modal); ?>">
+                                    <button type="button" class="btn btn-sm btn-ivote-icon" data-bs-toggle="modal"
+                                        data-bs-target="#<?php echo e($view_modal); ?>">
                                         <i class="bi bi-eye"></i>
                                     </button>
 
-                                    <button type="button" class="btn btn-sm btn-ivote-icon" data-bs-toggle="modal" data-bs-target="#<?php echo e($edit_modal); ?>">
+                                    <button type="button" class="btn btn-sm btn-ivote-icon" data-bs-toggle="modal"
+                                        data-bs-target="#<?php echo e($edit_modal); ?>">
                                         <i class="bi bi-pencil"></i>
                                     </button>
 
-                                    <button type="button" class="btn btn-sm btn-ivote-icon danger" data-bs-toggle="modal" data-bs-target="#<?php echo e($delete_modal); ?>">
+                                    <button type="button" class="btn btn-sm btn-ivote-icon danger" data-bs-toggle="modal"
+                                        data-bs-target="#<?php echo e($delete_modal); ?>">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </td>
@@ -693,7 +715,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                 <ul class="pagination mb-0">
                     <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
                         <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                            <a class="page-link" href="voters.php?search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&page=<?php echo $i; ?>">
+                            <a class="page-link"
+                                href="voters.php?search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&page=<?php echo $i; ?>">
                                 <?php echo $i; ?>
                             </a>
                         </li>
@@ -705,132 +728,132 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 </div>
 
 <?php if (count($voters) > 0) { ?>
-<?php foreach ($voters as $voter) { ?>
-<?php
-    $full_name = voter_display_name($voter);
-    $birth_display = voter_display_birthdate($voter['birth_date']);
-    $address_line = voter_display_address($voter);
-    $view_modal = voter_modal_id($voter['voter_id'], 'viewVoter');
-    $edit_modal = voter_modal_id($voter['voter_id'], 'editVoter');
-    $delete_modal = voter_modal_id($voter['voter_id'], 'deleteVoter');
-?>
-                            <div class="modal fade" id="<?php echo e($view_modal); ?>" tabindex="-1">
-                                <div class="modal-dialog modal-lg modal-dialog-centered">
-                                    <div class="modal-content ivote-modal">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Voter Profile</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
+    <?php foreach ($voters as $voter) { ?>
+        <?php
+        $full_name = voter_display_name($voter);
+        $birth_display = voter_display_birthdate($voter['birth_date']);
+        $address_line = voter_display_address($voter);
+        $view_modal = voter_modal_id($voter['voter_id'], 'viewVoter');
+        $edit_modal = voter_modal_id($voter['voter_id'], 'editVoter');
+        $delete_modal = voter_modal_id($voter['voter_id'], 'deleteVoter');
+        ?>
+        <div class="modal fade" id="<?php echo e($view_modal); ?>" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content ivote-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Voter Profile</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
 
-                                        <div class="modal-body">
-                                            <div class="ivote-profile-view">
-                                                <div>
-                                                    <span>Voter ID</span>
-                                                    <strong><?php echo e($voter['voter_id']); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Full Name</span>
-                                                    <strong><?php echo e($full_name); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Birth Date</span>
-                                                    <strong><?php echo e($birth_display); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Sex</span>
-                                                    <strong><?php echo e($voter['sex'] ? $voter['sex'] : '-'); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Email</span>
-                                                    <strong><?php echo e($voter['email'] ? $voter['email'] : '-'); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Mobile</span>
-                                                    <strong><?php echo e($voter['mobile_number'] ? $voter['mobile_number'] : '-'); ?></strong>
-                                                </div>
-
-                                                <div class="full">
-                                                    <span>Address</span>
-                                                    <strong><?php echo e($address_line); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Profile Status</span>
-                                                    <strong><?php echo e($voter['profile_status']); ?></strong>
-                                                </div>
-
-                                                <div>
-                                                    <span>Registration Status</span>
-                                                    <strong><?php echo e($voter['registration_status']); ?></strong>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="modal-body">
+                        <div class="ivote-profile-view">
+                            <div>
+                                <span>Voter ID</span>
+                                <strong><?php echo e($voter['voter_id']); ?></strong>
                             </div>
 
-                            <div class="modal fade" id="<?php echo e($edit_modal); ?>" tabindex="-1">
-                                <div class="modal-dialog modal-xl modal-dialog-centered">
-                                    <div class="modal-content ivote-modal">
-                                        <form method="POST" action="voters.php">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Edit Voter Record</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-
-                                            <div class="modal-body">
-                                                <?php echo csrf_field(); ?>
-                                                <input type="hidden" name="action" value="update">
-                                                <?php echo voter_form_fields($voter, true); ?>
-                                            </div>
-
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-ivote">Save Changes</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
+                            <div>
+                                <span>Full Name</span>
+                                <strong><?php echo e($full_name); ?></strong>
                             </div>
 
-                            <div class="modal fade" id="<?php echo e($delete_modal); ?>" tabindex="-1">
-                                <div class="modal-dialog modal-dialog-centered">
-                                    <div class="modal-content ivote-modal">
-                                        <form method="POST" action="voters.php">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Delete Voter Record</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-
-                                            <div class="modal-body">
-                                                <?php echo csrf_field(); ?>
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="voter_id" value="<?php echo e($voter['voter_id']); ?>">
-
-                                                <p>
-                                                    Are you sure you want to delete voter
-                                                    <strong><?php echo e($voter['voter_id']); ?></strong>?
-                                                </p>
-
-                                                <small class="text-muted">
-                                                    This action cannot be undone. Voters with accounts, ballots, or votes may not be deletable.
-                                                </small>
-                                            </div>
-
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-danger">Delete Voter</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
+                            <div>
+                                <span>Birth Date</span>
+                                <strong><?php echo e($birth_display); ?></strong>
                             </div>
-<?php } ?>
+
+                            <div>
+                                <span>Sex</span>
+                                <strong><?php echo e($voter['sex'] ? $voter['sex'] : '-'); ?></strong>
+                            </div>
+
+                            <div>
+                                <span>Email</span>
+                                <strong><?php echo e($voter['email'] ? $voter['email'] : '-'); ?></strong>
+                            </div>
+
+                            <div>
+                                <span>Mobile</span>
+                                <strong><?php echo e($voter['mobile_number'] ? $voter['mobile_number'] : '-'); ?></strong>
+                            </div>
+
+                            <div class="full">
+                                <span>Address</span>
+                                <strong><?php echo e($address_line); ?></strong>
+                            </div>
+
+                            <div>
+                                <span>Profile Status</span>
+                                <strong><?php echo e($voter['profile_status']); ?></strong>
+                            </div>
+
+                            <div>
+                                <span>Registration Status</span>
+                                <strong><?php echo e($voter['registration_status']); ?></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="<?php echo e($edit_modal); ?>" tabindex="-1">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content ivote-modal">
+                    <form method="POST" action="voters.php">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Voter Record</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="action" value="update">
+                            <?php echo voter_form_fields($voter, true); ?>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-ivote">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="<?php echo e($delete_modal); ?>" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content ivote-modal">
+                    <form method="POST" action="voters.php">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Delete Voter Record</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="voter_id" value="<?php echo e($voter['voter_id']); ?>">
+
+                            <p>
+                                Are you sure you want to delete voter
+                                <strong><?php echo e($voter['voter_id']); ?></strong>?
+                            </p>
+
+                            <small class="text-muted">
+                                This action cannot be undone. Voters with accounts, ballots, or votes may not be deletable.
+                            </small>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger">Delete Voter</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <?php } ?>
 <?php } ?>
 
 <div class="modal fade" id="addVoterModal" tabindex="-1">
@@ -847,24 +870,24 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     <input type="hidden" name="action" value="create">
 
                     <?php
-                        $blank_voter = array(
-                            'voter_id' => '',
-                            'first_name' => '',
-                            'middle_name' => '',
-                            'last_name' => '',
-                            'birth_date' => '',
-                            'sex' => '',
-                            'mobile_number' => '',
-                            'email' => '',
-                            'region' => '',
-                            'province' => '',
-                            'city' => '',
-                            'barangay' => '',
-                            'specific_address' => '',
-                            'registration_status' => 'Unregistered'
-                        );
+                    $blank_voter = array(
+                        'voter_id' => '',
+                        'first_name' => '',
+                        'middle_name' => '',
+                        'last_name' => '',
+                        'birth_date' => '',
+                        'sex' => '',
+                        'mobile_number' => '',
+                        'email' => '',
+                        'region' => '',
+                        'province' => '',
+                        'city' => '',
+                        'barangay' => '',
+                        'specific_address' => '',
+                        'registration_status' => 'Unregistered'
+                    );
 
-                        echo voter_form_fields($blank_voter, false);
+                    echo voter_form_fields($blank_voter, false);
                     ?>
                 </div>
 

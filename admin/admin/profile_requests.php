@@ -658,12 +658,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
     <section class="ivote-card ivote-dashboard-panel mb-4">
         <form method="get" class="profileRequestFilterGrid">
-            <div>
-                <label class="form-label fw-bold">Search</label>
-                <input type="text" name="q" class="form-control"
-                    value="<?php echo pcr_admin_h($search === '' ? null : $search); ?>"
-                    placeholder="Search voter ID, name, email, field, or message">
-            </div>
 
             <div>
                 <label class="form-label fw-bold">Status</label>

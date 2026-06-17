@@ -603,8 +603,16 @@ $where = array();
 $params = array();
 
 if ($search != '') {
-    $where[] = "(c.full_name LIKE :search OR c.political_party LIKE :search OR c.platform LIKE :search OR p.position_name LIKE :search OR c.election_scope LIKE :search OR c.region LIKE :search OR c.province LIKE :search OR c.city_municipality LIKE :search)";
-    $params[':search'] = '%' . $search . '%';
+    $where[] = "(c.full_name LIKE :search1 OR c.political_party LIKE :search2 OR c.platform LIKE :search3 OR p.position_name LIKE :search4 OR c.election_scope LIKE :search5 OR c.region LIKE :search6 OR c.province LIKE :search7 OR c.city_municipality LIKE :search8)";
+    $search_like = '%' . $search . '%';
+    $params[':search1'] = $search_like;
+    $params[':search2'] = $search_like;
+    $params[':search3'] = $search_like;
+    $params[':search4'] = $search_like;
+    $params[':search5'] = $search_like;
+    $params[':search6'] = $search_like;
+    $params[':search7'] = $search_like;
+    $params[':search8'] = $search_like;
 }
 
 if ($position_filter != '') {

@@ -375,30 +375,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         </div>
     </div>
 
-    <div class="ivote-filter-card">
-        <form method="GET" action="audit_logs.php" class="ivote-audit-filter-form">
-            <div>
-                <label class="form-label">Search Logs</label>
-                <input
-                    type="text"
-                    name="search"
-                    class="form-control"
-                    value="<?php echo e($search); ?>"
-                    placeholder="Search admin name or action"
-                >
-            </div>
-
-            <button type="submit" class="btn btn-ivote-outline">
-                <i class="bi bi-search me-1"></i>
-                Search
-            </button>
-
-            <a href="audit_logs.php" class="btn btn-light border">
-                Reset
-            </a>
-        </form>
-    </div>
-
     <div class="ivote-card ivote-data-card">
         <div class="ivote-card-header">
             <h3 class="ivote-section-title">
