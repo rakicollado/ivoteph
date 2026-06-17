@@ -495,6 +495,33 @@ if (!function_exists('ivoteph_profile_request_table_exists')) {
     }
 }
 
+if (!function_exists('ivoteph_profile_request_column_exists')) {
+    function ivoteph_profile_request_column_exists($conn, $table_name, $column_name)
+    {
+        $table_name = preg_replace('/[^A-Za-z0-9_]/', '', $table_name);
+        $column_name = preg_replace('/[^A-Za-z0-9_]/', '', $column_name);
+
+        if ($table_name === '' || $column_name === '') {
+            return false;
+        }
+
+        $table_name_sql = mysqli_real_escape_string($conn, $table_name);
+        $column_name_sql = mysqli_real_escape_string($conn, $column_name);
+        $result = mysqli_query($conn, "SHOW COLUMNS FROM `" . $table_name_sql . "` LIKE '" . $column_name_sql . "'");
+
+        if ($result && mysqli_num_rows($result) > 0) {
+            mysqli_free_result($result);
+            return true;
+        }
+
+        if ($result) {
+            mysqli_free_result($result);
+        }
+
+        return false;
+    }
+}
+
 if (!function_exists('ivoteph_profile_request_date')) {
     function ivoteph_profile_request_date($value)
     {
@@ -516,6 +543,10 @@ $profile_notifications = array();
 $profile_notification_count = 0;
 
 if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_voter_id) !== '' && ivoteph_profile_request_table_exists($conn, 'profile_change_requests')) {
+    if (!ivoteph_profile_request_column_exists($conn, 'profile_change_requests', 'user_seen_at')) {
+        mysqli_query($conn, "ALTER TABLE profile_change_requests ADD user_seen_at DATETIME NULL");
+    }
+
     $stmt_profile_notifications = mysqli_prepare($conn, "
         SELECT
             request_id,
@@ -524,7 +555,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             request_status,
             admin_response,
             created_at,
-            reviewed_at
+            reviewed_at,
+            user_seen_at
         FROM profile_change_requests
         WHERE voter_id = ?
         ORDER BY request_id DESC
@@ -542,7 +574,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             $notif_request_status,
             $notif_admin_response,
             $notif_created_at,
-            $notif_reviewed_at
+            $notif_reviewed_at,
+            $notif_user_seen_at
         );
 
         while (mysqli_stmt_fetch($stmt_profile_notifications)) {
@@ -553,10 +586,11 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                 'request_status' => $notif_request_status,
                 'admin_response' => $notif_admin_response,
                 'created_at' => $notif_created_at,
-                'reviewed_at' => $notif_reviewed_at
+                'reviewed_at' => $notif_reviewed_at,
+                'user_seen_at' => $notif_user_seen_at
             );
 
-            if ($notif_request_status === 'Approved' || $notif_request_status === 'Rejected' || $notif_request_status === 'Resolved') {
+            if (($notif_request_status === 'Approved' || $notif_request_status === 'Rejected' || $notif_request_status === 'Resolved') && ($notif_user_seen_at === null || trim((string) $notif_user_seen_at) === '')) {
                 $profile_notification_count++;
             }
         }
@@ -2381,10 +2415,10 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                 </div>
             </nav>
             <button type="button" class="profileNotifBtn" data-bs-toggle="modal"
-                data-bs-target="#profileNotificationModal" title="Profile request notifications">
+                data-bs-target="#profileNotificationModal" title="Profile request notifications" aria-label="Profile request notifications">
                 <i class="fa-solid fa-bell"></i>
                 <?php if (isset($profile_notification_count) && $profile_notification_count > 0) { ?>
-                    <span><?php echo number_format($profile_notification_count); ?></span>
+                    <span id="profileNotificationBadge"><?php echo number_format($profile_notification_count); ?></span>
                 <?php } ?>
             </button>
 
@@ -2819,7 +2853,7 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                     <?php } else { ?>
                         <div class="profileNotifList">
                             <?php foreach ($profile_notifications as $notification) { ?>
-                                <div class="profileNotifItem">
+                                <div class="profileNotifItem <?php echo (($notification['user_seen_at'] === null || trim((string) $notification['user_seen_at']) === '') && ($notification['request_status'] === 'Approved' || $notification['request_status'] === 'Rejected' || $notification['request_status'] === 'Resolved')) ? 'profileNotifUnread' : ''; ?>">
                                     <div class="profileNotifTop">
                                         <div>
                                             <strong><?php echo ivoteph_h($notification['request_field']); ?></strong>
@@ -2968,7 +3002,54 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             return false;
         };
     </script>
+<script id="ivoteProfileNotificationSeenFix">
+    (function () {
+        var notificationButton = document.querySelector('.profileNotifBtn');
+        var notificationModal = document.getElementById('profileNotificationModal');
 
+        var currentVoterId = <?php echo isset($profile_voter_id) ? json_encode($profile_voter_id) : '""'; ?>;
+
+        var unseenCount = <?php echo isset($profile_notification_count) ? (int) $profile_notification_count : 0; ?>;
+        var hasMarkedSeen = false;
+
+        function hideNotificationBadge() {
+            var badge = document.getElementById('profileNotificationBadge');
+
+            if (badge && badge.parentNode) {
+                badge.parentNode.removeChild(badge);
+            }
+        }
+
+        function markNotificationsSeen() {
+            if (hasMarkedSeen || unseenCount <= 0) {
+                hideNotificationBadge();
+                return;
+            }
+
+            hasMarkedSeen = true;
+            hideNotificationBadge();
+
+            var formData = new FormData();
+            formData.append('action', 'mark_profile_notifications_seen');
+
+            if (currentVoterId !== '') {
+                formData.append('voter_id', currentVoterId);
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'submit_profile_request.php', true);
+            xhr.send(formData);
+        }
+
+        if (notificationButton) {
+            notificationButton.addEventListener('click', markNotificationsSeen);
+        }
+
+        if (notificationModal) {
+            notificationModal.addEventListener('shown.bs.modal', markNotificationsSeen);
+        }
+    })();
+</script>
 </body>
 
 </html>

@@ -405,15 +405,49 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
 
 <style>
+    /* ── Profile Requests page polish ──────────────────────────── */
+    .ivote-dashboard-wrapper {
+        padding: 0;
+        max-width: 100%;
+        margin: 0;
+    }
+
     .profileRequestStats {
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
     .profileRequestFilterGrid {
         display: grid;
-        grid-template-columns: minmax(260px, 1fr) 260px auto auto;
-        gap: 14px;
+        grid-template-columns: minmax(220px, 1fr) auto auto;
+        gap: 12px;
         align-items: end;
+    }
+
+    .ivote-dashboard-panel {
+        background: #ffffff;
+        border: 1px solid #e4ecf7;
+        border-radius: 18px;
+        box-shadow: 0 2px 8px rgba(6, 71, 184, 0.06);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .ivote-dashboard-panel:last-child { margin-bottom: 0; }
+
+    .ivote-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .ivote-section-title {
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 4px;
+        color: #0d1b3e;
     }
 
     .profileRequestCardList {
@@ -423,10 +457,15 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
     .profileRequestCard {
         border: 1px solid #dfe7f3;
-        border-radius: 24px;
+        border-radius: 20px;
         background: #ffffff;
-        box-shadow: 0 10px 24px rgba(16, 24, 40, 0.06);
+        box-shadow: 0 4px 16px rgba(16, 24, 40, 0.05);
         overflow: hidden;
+        transition: box-shadow 0.15s;
+    }
+
+    .profileRequestCard:hover {
+        box-shadow: 0 8px 28px rgba(6, 71, 184, 0.10);
     }
 
     .profileRequestCardHeader {
@@ -434,33 +473,39 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
-        padding: 20px;
+        padding: 18px 20px;
         background: #f8fbff;
         border-bottom: 1px solid #edf2f8;
     }
 
     .profileRequestVoterId {
         color: #0647b8;
-        font-weight: 950;
-        white-space: nowrap;
+        font-weight: 800;
+        font-size: 13px;
+        letter-spacing: 0.02em;
+        margin-bottom: 2px;
     }
 
     .profileRequestName {
         color: #101828;
-        font-size: 18px;
-        font-weight: 950;
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
     }
 
     .profileRequestSubtext {
         color: #667085;
-        font-size: 13px;
+        font-size: 12px;
+        margin-top: 2px;
     }
 
     .profileRequestBadge {
         border-radius: 999px;
-        padding: 8px 14px;
-        font-weight: 950;
+        padding: 6px 14px;
+        font-weight: 700;
         font-size: 12px;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
     }
 
     .profileRequestCardBody {
@@ -470,16 +515,16 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
     .profileRequestInfoGrid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
+        gap: 12px;
         margin-bottom: 16px;
     }
 
     .profileRequestInfoBox {
         background: #f7f9fd;
         border: 1px solid #e1e8f3;
-        border-radius: 18px;
-        padding: 14px;
-        min-height: 88px;
+        border-radius: 14px;
+        padding: 12px 14px;
+        min-height: 80px;
     }
 
     .profileRequestInfoBox.profileRequestWide {
@@ -490,7 +535,7 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         display: block;
         color: #667085;
         font-size: 11px;
-        font-weight: 950;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 6px;
@@ -499,53 +544,86 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
     .profileRequestInfoBox strong {
         display: block;
         color: #101828;
-        font-weight: 900;
+        font-weight: 700;
+        font-size: 14px;
         overflow-wrap: anywhere;
-    }
-
-    .profileRequestMessageBox {
-        background: #eef5ff;
-        border: 1px solid #cfe0ff;
-        border-radius: 18px;
-        padding: 16px;
-        line-height: 1.6;
-        color: #24344f;
-        margin-bottom: 16px;
     }
 
     .profileRequestActionPanel {
         display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
-        gap: 14px;
-        align-items: start;
+        grid-template-columns: 1fr;
+        gap: 12px;
         padding: 16px;
         border: 1px solid #dbe7fb;
-        border-radius: 20px;
+        border-radius: 16px;
         background: #fbfdff;
     }
 
     .profileRequestActionPanel label {
-        font-weight: 900;
-        color: #101828;
+        font-weight: 700;
+        font-size: 13px;
+        color: #344054;
+    }
+
+    .profileRequestActionPanel textarea {
+        border-radius: 12px;
+        border-color: #d0ddf0;
+        font-size: 14px;
+        min-height: 80px;
     }
 
     .profileRequestActionButtons {
-        grid-column: 1 / -1;
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
         justify-content: flex-end;
-        padding-top: 4px;
     }
 
     .profileRequestActionButtons .btn {
         border-radius: 999px !important;
-        font-weight: 950 !important;
-        padding: 10px 18px !important;
+        font-weight: 700 !important;
+        padding: 10px 20px !important;
+        font-size: 14px !important;
     }
 
+    .profileRequestActionButtons.threeOnly {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 10px !important;
+    }
+
+    .profileRequestActionButtons.threeOnly .btn {
+        min-height: 46px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .profileRequestActionButtons.decidedOnly {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .profileRequestReviewedNote {
+        font-size: 13px;
+        color: #344054;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: #f4f8ff;
+        border: 1px solid #d8e9ff;
+        border-radius: 12px;
+        flex: 1;
+    }
+
+    .profileRequestReviewedNote i.bi-check-circle-fill { color: #16a34a; font-size: 16px; }
+    .profileRequestReviewedNote i.bi-x-circle-fill { color: #d92d20; font-size: 16px; }
+
     .profileRequestEmpty {
-        min-height: 260px;
+        min-height: 240px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -568,43 +646,37 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
     }
 
     .profileRequestEmpty h2 {
-        font-size: 28px;
-        font-weight: 950;
+        font-size: 26px;
+        font-weight: 800;
         letter-spacing: -0.03em;
         margin-bottom: 8px;
     }
 
-    @media (max-width: 1200px) {
-        .profileRequestStats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    .ivote-flash-wrap { margin-bottom: 16px; }
 
-        .profileRequestFilterGrid,
-        .profileRequestInfoGrid,
-        .profileRequestActionPanel {
-            grid-template-columns: 1fr;
-        }
+    .btn-ivote { background: #0647b8; color: #fff; border-color: #0647b8; border-radius: 12px; font-weight: 700; }
+    .btn-ivote:hover { background: #053a94; color: #fff; }
+    .btn-ivote-outline { border: 1.5px solid #0647b8; color: #0647b8; border-radius: 12px; font-weight: 700; background: transparent; }
+    .btn-ivote-outline:hover { background: #0647b8; color: #fff; }
+
+    @media (max-width: 1200px) {
+        .profileRequestStats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .profileRequestFilterGrid { grid-template-columns: 1fr auto auto; }
+        .profileRequestInfoGrid { grid-template-columns: repeat(2, 1fr); }
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 768px) {
+        .profileRequestStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .profileRequestFilterGrid,
+        .profileRequestInfoGrid { grid-template-columns: 1fr; }
+        .profileRequestCardHeader { flex-direction: column; }
+        .profileRequestActionButtons.threeOnly { grid-template-columns: 1fr !important; }
+        .profileRequestActionButtons.decidedOnly { flex-direction: column; align-items: stretch !important; }
+        .profileRequestReviewedNote { width: 100%; }
+    }
 
-        .profileRequestStats,
-        .profileRequestFilterGrid {
-            grid-template-columns: 1fr;
-        }
-
-        .profileRequestCardHeader {
-            flex-direction: column;
-        }
-
-        .profileRequestActionButtons {
-            display: grid;
-            grid-template-columns: 1fr;
-        }
-
-        .profileRequestActionButtons .btn {
-            width: 100%;
-        }
+    @media (max-width: 480px) {
+        .profileRequestStats { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -794,7 +866,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                         placeholder="Example: Your request has been approved and your profile information has been updated."><?php echo pcr_admin_h($request['admin_response']); ?></textarea>
                                 </div>
 
-                                <div class="profileRequestActionButtons threeOnly">
+                                <div class="profileRequestActionButtons <?php echo ($request['request_status'] === 'Approved' || $request['request_status'] === 'Rejected') ? 'decidedOnly' : 'threeOnly'; ?>">
+                                    <?php if ($request['request_status'] !== 'Approved' && $request['request_status'] !== 'Rejected') { ?>
                                     <button type="button" class="btn btn-success pcrConfirmAction" data-action="approve"
                                         data-status="Approved" data-title="Approve Profile Request"
                                         data-message="Approve this request and notify the user?">
@@ -806,6 +879,16 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                                         data-message="Reject this request and notify the user?">
                                         <i class="bi bi-x-circle me-1"></i> Reject
                                     </button>
+                                    <?php } else { ?>
+                                    <div class="profileRequestReviewedNote">
+                                        <i class="bi bi-<?php echo $request['request_status'] === 'Approved' ? 'check-circle-fill' : 'x-circle-fill'; ?>"></i>
+                                        <span>
+                                            <?php echo pcr_admin_h($request['request_status']); ?> by
+                                            <strong><?php echo pcr_admin_h($request['reviewed_by'] ? $request['reviewed_by'] : 'Admin'); ?></strong>
+                                            <?php if ($request['reviewed_at']) { echo '· ' . pcr_admin_h(pcr_admin_format_datetime($request['reviewed_at'])); } ?>
+                                        </span>
+                                    </div>
+                                    <?php } ?>
 
                                     <button type="button" class="btn btn-outline-danger pcrConfirmAction" data-action="delete"
                                         data-delete="1" data-title="Delete Profile Request"
@@ -821,28 +904,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         <?php } ?>
     </section>
 </div>
-
-
-<style id="profileRequestThreeButtonCleanFix">
-    .profileRequestActionButtons.threeOnly {
-        display: grid !important;
-        grid-template-columns: repeat(3, minmax(150px, 1fr)) !important;
-        gap: 12px !important;
-    }
-
-    .profileRequestActionButtons.threeOnly .btn {
-        min-height: 48px !important;
-        border-radius: 999px !important;
-        font-weight: 950 !important;
-    }
-
-    @media (max-width: 768px) {
-        .profileRequestActionButtons.threeOnly {
-            grid-template-columns: 1fr !important;
-        }
-    }
-</style>
-
 
 <style id="profileRequestModernConfirmModalFix">
     .pcrConfirmModern .modal-content {

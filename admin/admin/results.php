@@ -861,9 +861,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
         <div>
             <div class="ivote-results-eyebrow">Official Admin Results</div>
             <h2><?php echo $active_election ? e($active_election['election_name']) : 'Election Results'; ?></h2>
-            <p>
-                Results are computed directly from submitted ballots and vote records in the MySQL database.
-            </p>
         </div>
 
         <div class="ivote-results-hero-meta">
@@ -910,7 +907,6 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     <i class="bi bi-pie-chart-fill text-primary me-1"></i>
                     Voter Analytics
                 </h3>
-                <p class="text-muted mb-0">Chart.js voter summary based on registered voter accounts and generation groups.</p>
             </div>
         </div>
 

@@ -534,11 +534,311 @@ $stmt->bindValue(':offset', (int) $offset, PDO::PARAM_INT);
 $stmt->execute();
 
 $voters = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$count_total    = 0;
+$count_reg      = 0;
+$count_unreg    = 0;
+$count_blocked  = 0;
+$count_complete = 0;
+$count_accounts = 0;
+try {
+    $count_total    = (int) $pdo->query("SELECT COUNT(*) FROM registered_voters")->fetchColumn();
+    $count_reg      = (int) $pdo->query("SELECT COUNT(*) FROM registered_voters WHERE registration_status = 'Registered'")->fetchColumn();
+    $count_unreg    = (int) $pdo->query("SELECT COUNT(*) FROM registered_voters WHERE registration_status = 'Unregistered'")->fetchColumn();
+    $count_blocked  = (int) $pdo->query("SELECT COUNT(*) FROM registered_voters WHERE registration_status = 'Blocked'")->fetchColumn();
+    $count_complete = (int) $pdo->query("SELECT COUNT(*) FROM registered_voters WHERE profile_status = 'Complete'")->fetchColumn();
+    $count_accounts = (int) $pdo->query("SELECT COUNT(DISTINCT voter_id) FROM accounts")->fetchColumn();
+} catch (Exception $e) {}
+
 $flashes = consume_flash();
 
 require_once dirname(__FILE__) . '/../includes/header.php';
 require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
+
+<style>
+/* ── Voters page polish ─────────────────────────────────────── */
+.ivote-management-page {
+    padding: 0;
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.ivote-filter-card {
+    background: #ffffff;
+    border: 1px solid #e4ecf7;
+    border-radius: 18px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(6, 71, 184, 0.06);
+}
+
+.ivote-filter-form {
+    display: grid;
+    grid-template-columns: 1fr minmax(160px, 220px) auto auto auto;
+    align-items: end;
+    gap: 12px;
+}
+
+.ivote-filter-form > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ivote-filter-form .form-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #667085;
+    margin-bottom: 0;
+}
+
+.ivote-filter-form .form-control,
+.ivote-filter-form .form-select {
+    border-radius: 12px;
+    border-color: #d0ddf0;
+    font-size: 14px;
+}
+
+.ivote-filter-form .btn {
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 8px 18px;
+    white-space: nowrap;
+    align-self: flex-end;
+}
+
+.ivote-data-card {
+    background: #ffffff;
+    border: 1px solid #e4ecf7;
+    border-radius: 18px;
+    box-shadow: 0 2px 10px rgba(6, 71, 184, 0.06);
+    overflow: hidden;
+}
+
+.ivote-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid #edf2fb;
+    background: #f8fbff;
+}
+
+.ivote-section-title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: #0d1b3e;
+}
+
+.ivote-record-count {
+    background: #eef5ff;
+    color: #0647b8;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 999px;
+}
+
+.ivote-management-table {
+    margin: 0;
+    font-size: 14px;
+}
+
+.ivote-management-table thead th {
+    background: #f4f8ff;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e1ebf9;
+    padding: 12px 14px;
+    white-space: nowrap;
+}
+
+.ivote-management-table tbody td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f5fd;
+    color: #1a2942;
+}
+
+.ivote-management-table tbody tr:last-child td { border-bottom: none; }
+.ivote-management-table tbody tr:hover td { background: #f8fbff; }
+
+.btn-ivote-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #d0ddf0;
+    background: #f4f8ff;
+    color: #0647b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+}
+.btn-ivote-icon:hover { background: #0647b8; color: #fff; border-color: #0647b8; }
+.btn-ivote-icon.danger { color: #d92d20; border-color: #fecdd3; background: #fff5f5; }
+.btn-ivote-icon.danger:hover { background: #d92d20; color: #fff; border-color: #d92d20; }
+
+.ivote-pagination-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    border-top: 1px solid #edf2fb;
+}
+.ivote-pagination-wrap .page-link {
+    border-radius: 8px !important;
+    margin: 0 2px;
+    font-size: 13px;
+    font-weight: 600;
+    border-color: #d0ddf0;
+    color: #0647b8;
+}
+.ivote-pagination-wrap .page-item.active .page-link {
+    background: #0647b8;
+    border-color: #0647b8;
+}
+
+.ivote-flash-wrap { margin-bottom: 16px; }
+
+.ivote-form-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #edf2fb;
+}
+.ivote-form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.ivote-form-section h6 {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #0647b8;
+    margin-bottom: 14px;
+}
+
+.ivote-profile-view {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+.ivote-profile-view > div {
+    background: #f7f9fd;
+    border: 1px solid #e1e8f3;
+    border-radius: 14px;
+    padding: 12px 14px;
+}
+.ivote-profile-view > div.full { grid-column: 1 / -1; }
+.ivote-profile-view span {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #667085;
+    margin-bottom: 4px;
+}
+.ivote-profile-view strong { display: block; font-size: 14px; color: #1a2942; font-weight: 700; }
+
+.btn-ivote { background: #0647b8; color: #fff; border-color: #0647b8; border-radius: 12px; font-weight: 700; }
+.btn-ivote:hover { background: #053a94; color: #fff; }
+.btn-ivote-outline { border: 1.5px solid #0647b8; color: #0647b8; border-radius: 12px; font-weight: 700; background: transparent; }
+.btn-ivote-outline:hover { background: #0647b8; color: #fff; }
+.ivote-reset-btn { border-radius: 12px; font-weight: 600; }
+
+.ivote-modal .modal-header {
+    background: linear-gradient(135deg, #0647b8, #0b63e5);
+    color: #fff;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    padding: 18px 22px;
+}
+.ivote-modal .modal-title { font-weight: 800; font-size: 17px; }
+.ivote-modal .btn-close { filter: brightness(0) invert(1); }
+.ivote-modal .modal-content { border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(6,71,184,0.18); }
+
+.ivote-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.ivote-stat-card {
+    background: #ffffff;
+    border: 1px solid #e4ecf7;
+    border-radius: 18px;
+    padding: 22px 20px;
+    box-shadow: 0 2px 8px rgba(6, 71, 184, 0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.ivote-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #eef5ff;
+    color: #0647b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+.ivote-stat-icon.green  { background: #f0fdf4; color: #16a34a; }
+.ivote-stat-icon.yellow { background: #fffbeb; color: #b45309; }
+.ivote-stat-icon.red    { background: #fff5f5; color: #d92d20; }
+.ivote-stat-icon.purple { background: #f5f3ff; color: #7c3aed; }
+.ivote-stat-icon.teal   { background: #f0fdfa; color: #0d9488; }
+
+.ivote-stat-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #667085;
+    margin-bottom: 4px;
+}
+
+.ivote-stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0d1b3e;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 4px;
+    margin-top: 0;
+}
+
+.ivote-stat-caption {
+    font-size: 12px;
+    color: #98a2b3;
+    margin: 0;
+}
+
+@media (max-width: 1200px) {
+    .ivote-stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) {
+    .ivote-filter-form > div { min-width: 0; }
+    .ivote-profile-view { grid-template-columns: 1fr; }
+    .ivote-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
 
 <div class="ivote-management-page">
 
@@ -552,6 +852,39 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
             <?php } ?>
         </div>
     <?php } ?>
+
+    <div class="ivote-stats-grid">
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon"><i class="bi bi-people-fill"></i></div>
+            <h3 class="ivote-stat-title">Total Voters</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_total); ?></p>
+            <p class="ivote-stat-caption">All voter records</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon green"><i class="bi bi-check-circle-fill"></i></div>
+            <h3 class="ivote-stat-title">Registered</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_reg); ?></p>
+            <p class="ivote-stat-caption">Eligible to vote</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon yellow"><i class="bi bi-hourglass-split"></i></div>
+            <h3 class="ivote-stat-title">Unregistered</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_unreg); ?></p>
+            <p class="ivote-stat-caption">Pending registration</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon teal"><i class="bi bi-person-check-fill"></i></div>
+            <h3 class="ivote-stat-title">Complete Profile</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_complete); ?></p>
+            <p class="ivote-stat-caption">Fully filled profiles</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon purple"><i class="bi bi-person-badge-fill"></i></div>
+            <h3 class="ivote-stat-title">With Account</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_accounts); ?></p>
+            <p class="ivote-stat-caption">Has login account</p>
+        </div>
+    </div>
 
     <div class="ivote-filter-card">
         <form method="GET" action="voters.php" class="ivote-filter-form">
@@ -713,14 +1046,35 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
             <nav>
                 <ul class="pagination mb-0">
-                    <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                        <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                            <a class="page-link"
-                                href="voters.php?search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>&page=<?php echo $i; ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </li>
-                    <?php } ?>
+                    <?php
+                    $window = 2;
+                    $prev_page = max(1, $page - 1);
+                    $next_page = min($total_pages, $page + 1);
+                    $base_url = 'voters.php?search=' . urlencode($search) . '&status=' . urlencode($status) . '&page=';
+                    ?>
+                    <li class="page-item <?php echo ($page == 1) ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="<?php echo $base_url . $prev_page; ?>"><i class="bi bi-chevron-left"></i></a>
+                    </li>
+                    <?php
+                    $shown = array();
+                    for ($i = 1; $i <= $total_pages; $i++) {
+                        if ($i == 1 || $i == $total_pages || ($i >= $page - $window && $i <= $page + $window)) {
+                            $shown[] = $i;
+                        }
+                    }
+                    $prev_shown = null;
+                    foreach ($shown as $i) {
+                        if ($prev_shown !== null && $i - $prev_shown > 1) {
+                            echo '<li class="page-item disabled"><span class="page-link px-2">…</span></li>';
+                        }
+                        echo '<li class="page-item ' . ($i == $page ? 'active' : '') . '">' .
+                             '<a class="page-link" href="' . $base_url . $i . '">' . $i . '</a></li>';
+                        $prev_shown = $i;
+                    }
+                    ?>
+                    <li class="page-item <?php echo ($page == $total_pages) ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="<?php echo $base_url . $next_page; ?>"><i class="bi bi-chevron-right"></i></a>
+                    </li>
                 </ul>
             </nav>
         </div>

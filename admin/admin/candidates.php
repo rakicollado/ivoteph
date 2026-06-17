@@ -694,6 +694,333 @@ require_once dirname(__FILE__) . '/../includes/header.php';
 require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
 
+<style>
+/* ── Candidates page polish ─────────────────────────────────── */
+.ivote-management-page {
+    padding: 0;
+    max-width: 100%;
+    margin: 0;
+}
+
+/* Filter bar */
+.ivote-filter-card {
+    background: #ffffff;
+    border: 1px solid #e4ecf7;
+    border-radius: 18px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(6, 71, 184, 0.06);
+}
+
+.ivote-filter-form {
+    display: grid;
+    grid-template-columns: 1fr minmax(160px, 200px) auto auto auto;
+    align-items: end;
+    gap: 12px;
+}
+
+.ivote-filter-form > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ivote-filter-form .form-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #667085;
+    margin-bottom: 0;
+}
+
+.ivote-filter-form .form-control,
+.ivote-filter-form .form-select {
+    border-radius: 12px;
+    border-color: #d0ddf0;
+    font-size: 14px;
+}
+
+.ivote-filter-form .btn {
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 8px 18px;
+    white-space: nowrap;
+    align-self: flex-end;
+}
+
+/* Data card */
+.ivote-data-card {
+    background: #ffffff;
+    border: 1px solid #e4ecf7;
+    border-radius: 18px;
+    box-shadow: 0 2px 10px rgba(6, 71, 184, 0.06);
+    overflow: hidden;
+}
+
+.ivote-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid #edf2fb;
+    background: #f8fbff;
+}
+
+.ivote-section-title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: #0d1b3e;
+}
+
+.ivote-record-count {
+    background: #eef5ff;
+    color: #0647b8;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 999px;
+}
+
+/* Table */
+.ivote-management-table {
+    margin: 0;
+    font-size: 14px;
+}
+
+.ivote-management-table thead th {
+    background: #f4f8ff;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e1ebf9;
+    padding: 12px 16px;
+    white-space: nowrap;
+}
+
+.ivote-management-table tbody td {
+    padding: 14px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f5fd;
+    color: #1a2942;
+}
+
+.ivote-management-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ivote-management-table tbody tr:hover td {
+    background: #f8fbff;
+}
+
+/* Candidate cell with photo */
+.ivote-candidate-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ivote-candidate-cell img {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid #d8e6fa;
+}
+
+/* Platform preview */
+.ivote-platform-preview {
+    color: #667085;
+    font-size: 13px;
+    max-width: 260px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Action buttons */
+.btn-ivote-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #d0ddf0;
+    background: #f4f8ff;
+    color: #0647b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+}
+
+.btn-ivote-icon:hover {
+    background: #0647b8;
+    color: #fff;
+    border-color: #0647b8;
+}
+
+.btn-ivote-icon.danger {
+    color: #d92d20;
+    border-color: #fecdd3;
+    background: #fff5f5;
+}
+
+.btn-ivote-icon.danger:hover {
+    background: #d92d20;
+    color: #fff;
+    border-color: #d92d20;
+}
+
+/* Pagination */
+.ivote-pagination-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    border-top: 1px solid #edf2fb;
+}
+
+.ivote-pagination-wrap .page-link {
+    border-radius: 8px !important;
+    margin: 0 2px;
+    font-size: 13px;
+    font-weight: 600;
+    border-color: #d0ddf0;
+    color: #0647b8;
+}
+
+.ivote-pagination-wrap .page-item.active .page-link {
+    background: #0647b8;
+    border-color: #0647b8;
+}
+
+/* Flash wrap */
+.ivote-flash-wrap { margin-bottom: 16px; }
+
+/* Form sections inside modals */
+.ivote-form-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #edf2fb;
+}
+
+.ivote-form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.ivote-form-section h6 {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #0647b8;
+    margin-bottom: 14px;
+}
+
+/* Profile view in modals */
+.ivote-candidate-profile {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.ivote-candidate-photo-large img {
+    width: 110px;
+    height: 110px;
+    border-radius: 20px;
+    object-fit: cover;
+    border: 2px solid #d8e6fa;
+}
+
+.ivote-profile-view {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    flex: 1;
+}
+
+.ivote-profile-view > div {
+    background: #f7f9fd;
+    border: 1px solid #e1e8f3;
+    border-radius: 14px;
+    padding: 12px 14px;
+}
+
+.ivote-profile-view > div.full {
+    grid-column: 1 / -1;
+}
+
+.ivote-profile-view span {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #667085;
+    margin-bottom: 4px;
+}
+
+.ivote-profile-view strong {
+    display: block;
+    font-size: 14px;
+    color: #1a2942;
+    font-weight: 700;
+}
+
+/* btn-ivote */
+.btn-ivote {
+    background: #0647b8;
+    color: #fff;
+    border-color: #0647b8;
+    border-radius: 12px;
+    font-weight: 700;
+}
+.btn-ivote:hover { background: #053a94; color: #fff; }
+
+.btn-ivote-outline {
+    border: 1.5px solid #0647b8;
+    color: #0647b8;
+    border-radius: 12px;
+    font-weight: 700;
+    background: transparent;
+}
+.btn-ivote-outline:hover { background: #0647b8; color: #fff; }
+
+.ivote-reset-btn {
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* Modal */
+.ivote-modal .modal-header {
+    background: linear-gradient(135deg, #0647b8, #0b63e5);
+    color: #fff;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    padding: 18px 22px;
+}
+.ivote-modal .modal-title { font-weight: 800; font-size: 17px; }
+.ivote-modal .btn-close { filter: brightness(0) invert(1); }
+.ivote-modal .modal-content { border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(6,71,184,0.18); }
+
+@media (max-width: 768px) {
+    .ivote-management-page { padding: 0; }
+    .ivote-filter-form > div { min-width: 100%; flex: 1 1 100%; }
+    .ivote-candidate-profile { flex-direction: column; }
+    .ivote-profile-view { grid-template-columns: 1fr; }
+}
+</style>
+
 <div class="ivote-management-page">
 
     <?php if (count($flashes) > 0) { ?>
@@ -849,13 +1176,35 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 
             <nav>
                 <ul class="pagination mb-0">
-                    <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                        <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                            <a class="page-link" href="candidates.php?search=<?php echo urlencode($search); ?>&position_id=<?php echo urlencode($position_filter); ?>&page=<?php echo $i; ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </li>
-                    <?php } ?>
+                    <?php
+                    $window = 2;
+                    $prev_page = max(1, $page - 1);
+                    $next_page = min($total_pages, $page + 1);
+                    $base_url = 'candidates.php?search=' . urlencode($search) . '&position_id=' . urlencode($position_filter) . '&page=';
+                    ?>
+                    <li class="page-item <?php echo ($page == 1) ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="<?php echo $base_url . $prev_page; ?>"><i class="bi bi-chevron-left"></i></a>
+                    </li>
+                    <?php
+                    $shown = array();
+                    for ($i = 1; $i <= $total_pages; $i++) {
+                        if ($i == 1 || $i == $total_pages || ($i >= $page - $window && $i <= $page + $window)) {
+                            $shown[] = $i;
+                        }
+                    }
+                    $prev_shown = null;
+                    foreach ($shown as $i) {
+                        if ($prev_shown !== null && $i - $prev_shown > 1) {
+                            echo '<li class="page-item disabled"><span class="page-link px-2">…</span></li>';
+                        }
+                        echo '<li class="page-item ' . ($i == $page ? 'active' : '') . '">' .
+                             '<a class="page-link" href="' . $base_url . $i . '">' . $i . '</a></li>';
+                        $prev_shown = $i;
+                    }
+                    ?>
+                    <li class="page-item <?php echo ($page == $total_pages) ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="<?php echo $base_url . $next_page; ?>"><i class="bi bi-chevron-right"></i></a>
+                    </li>
                 </ul>
             </nav>
         </div>

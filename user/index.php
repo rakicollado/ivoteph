@@ -291,6 +291,251 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
 }
 /* end iVotePH profile request notification data */
 
+/* iVotePH official voting window (election schedule) data */
+if (!function_exists('ivoteph_election_table_columns')) {
+    function ivoteph_election_table_columns($conn)
+    {
+        $columns = array();
+        $result = mysqli_query($conn, "SHOW COLUMNS FROM elections");
+
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $columns[$row['Field']] = $row;
+            }
+
+            mysqli_free_result($result);
+        }
+
+        return $columns;
+    }
+}
+
+if (!function_exists('ivoteph_election_pick_column')) {
+    function ivoteph_election_pick_column($columns, $choices)
+    {
+        foreach ($choices as $choice) {
+            if (isset($columns[$choice])) {
+                return $choice;
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('ivoteph_election_get_single')) {
+    function ivoteph_election_get_single($conn, $title_col, $start_col, $end_col, $status_col)
+    {
+        $title_col = preg_replace('/[^A-Za-z0-9_]/', '', $title_col);
+        $start_col = preg_replace('/[^A-Za-z0-9_]/', '', $start_col);
+        $end_col = preg_replace('/[^A-Za-z0-9_]/', '', $end_col);
+        $status_col = preg_replace('/[^A-Za-z0-9_]/', '', $status_col);
+
+        $result = mysqli_query($conn, "
+            SELECT
+                election_id,
+                `" . $title_col . "` AS election_title,
+                `" . $start_col . "` AS start_datetime,
+                `" . $end_col . "` AS end_datetime,
+                `" . $status_col . "` AS election_status
+            FROM elections
+            ORDER BY election_id ASC
+            LIMIT 1
+        ");
+
+        if ($result && mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            mysqli_free_result($result);
+            return $row;
+        }
+
+        if ($result) {
+            mysqli_free_result($result);
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('ivoteph_election_ui_status')) {
+    function ivoteph_election_ui_status($status)
+    {
+        $status = strtolower(trim((string) $status));
+
+        if ($status === 'open') {
+            return 'Open';
+        }
+
+        if ($status === 'closed') {
+            return 'Closed';
+        }
+
+        return 'Draft';
+    }
+}
+
+if (!function_exists('ivoteph_election_runtime_status')) {
+    function ivoteph_election_runtime_status($election)
+    {
+        if (!$election) {
+            return 'Closed';
+        }
+
+        $stored_status = ivoteph_election_ui_status($election['election_status']);
+        $now = time();
+        $start = strtotime($election['start_datetime']);
+        $end = strtotime($election['end_datetime']);
+
+        if ($stored_status === 'Closed') {
+            return 'Closed';
+        }
+
+        if ($stored_status === 'Open') {
+            if ($end !== false && $now > $end) {
+                return 'Closed';
+            }
+
+            if ($start !== false && $now < $start) {
+                return 'Scheduled';
+            }
+
+            return 'Open';
+        }
+
+        if ($start !== false && $end !== false) {
+            if ($now < $start) {
+                return 'Scheduled';
+            }
+
+            if ($now >= $start && $now <= $end) {
+                return 'Open';
+            }
+
+            if ($now > $end) {
+                return 'Closed';
+            }
+        }
+
+        return 'Scheduled';
+    }
+}
+
+if (!function_exists('ivoteph_election_display_datetime')) {
+    function ivoteph_election_display_datetime($value)
+    {
+        if ($value === null || trim((string) $value) === '' || $value === '0000-00-00 00:00:00') {
+            return '';
+        }
+
+        $time = strtotime($value);
+
+        if ($time === false) {
+            return '';
+        }
+
+        return date('M d, Y h:i A', $time);
+    }
+}
+
+if (!function_exists('ivoteph_election_js_datetime')) {
+    function ivoteph_election_js_datetime($value)
+    {
+        if ($value === null || trim((string) $value) === '' || $value === '0000-00-00 00:00:00') {
+            return '';
+        }
+
+        $time = strtotime($value);
+
+        if ($time === false) {
+            return '';
+        }
+
+        return date('Y-m-d\TH:i:s', $time) . '+08:00';
+    }
+}
+
+if (!function_exists('ivoteph_election_status_css_class')) {
+    function ivoteph_election_status_css_class($status)
+    {
+        if ($status === 'Open') {
+            return 'statusOpen';
+        }
+
+        if ($status === 'Closed') {
+            return 'statusClosed';
+        }
+
+        return 'statusScheduled';
+    }
+}
+
+if (!function_exists('ivoteph_election_status_icon')) {
+    function ivoteph_election_status_icon($status)
+    {
+        if ($status === 'Open') {
+            return 'fa-lock-open';
+        }
+
+        if ($status === 'Closed') {
+            return 'fa-lock';
+        }
+
+        return 'fa-calendar-check';
+    }
+}
+
+if (!function_exists('ivoteph_election_status_message')) {
+    function ivoteph_election_status_message($status, $election)
+    {
+        if ($status === 'Open') {
+            $end_display = $election ? ivoteph_election_display_datetime($election['end_datetime']) : '';
+
+            return $end_display !== ''
+                ? ('Voting is open now. It closes on ' . $end_display . '.')
+                : 'Voting is open now. Cast your ballot before it closes.';
+        }
+
+        if ($status === 'Closed') {
+            return 'Voting is closed. Check the Results page for the official outcome.';
+        }
+
+        $start_display = $election ? ivoteph_election_display_datetime($election['start_datetime']) : '';
+
+        return $start_display !== ''
+            ? ('Voting opens on ' . $start_display . '.')
+            : 'The voting page will follow the schedule controlled by the admin panel.';
+    }
+}
+
+$ivoteph_election = false;
+
+if (isset($conn) && $conn) {
+    $ivoteph_election_columns = ivoteph_election_table_columns($conn);
+
+    $ivoteph_election_title_col = ivoteph_election_pick_column($ivoteph_election_columns, array('election_name', 'election_title', 'title'));
+    $ivoteph_election_start_col = ivoteph_election_pick_column($ivoteph_election_columns, array('start_datetime', 'start_date', 'starts_at'));
+    $ivoteph_election_end_col = ivoteph_election_pick_column($ivoteph_election_columns, array('end_datetime', 'end_date', 'ends_at'));
+    $ivoteph_election_status_col = ivoteph_election_pick_column($ivoteph_election_columns, array('election_status', 'status'));
+
+    if ($ivoteph_election_title_col !== '' && $ivoteph_election_start_col !== '' && $ivoteph_election_end_col !== '' && $ivoteph_election_status_col !== '') {
+        $ivoteph_election = ivoteph_election_get_single(
+            $conn,
+            $ivoteph_election_title_col,
+            $ivoteph_election_start_col,
+            $ivoteph_election_end_col,
+            $ivoteph_election_status_col
+        );
+    }
+}
+
+$ivoteph_election_runtime_status = ivoteph_election_runtime_status($ivoteph_election);
+$ivoteph_election_css_class = ivoteph_election_status_css_class($ivoteph_election_runtime_status);
+$ivoteph_election_icon_class = ivoteph_election_status_icon($ivoteph_election_runtime_status);
+$ivoteph_election_message = ivoteph_election_status_message($ivoteph_election_runtime_status, $ivoteph_election);
+$ivoteph_election_start_js = $ivoteph_election ? ivoteph_election_js_datetime($ivoteph_election['start_datetime']) : '';
+$ivoteph_election_end_js = $ivoteph_election ? ivoteph_election_js_datetime($ivoteph_election['end_datetime']) : '';
+/* end iVotePH official voting window data */
+
 ?>
 <!doctype html>
 <html lang="en">
@@ -614,6 +859,8 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
 
         .statusPanel {
             padding: 24px;
+            display: flex;
+            flex-direction: column;
         }
 
         .statusHeader {
@@ -679,6 +926,24 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             font-size: 10px;
             font-weight: 900;
             color: var(--userMuted);
+        }
+
+        .statusIcon.statusOpen {
+            background: #e7f7ed;
+            color: #16a34a;
+        }
+
+        .statusIcon.statusClosed {
+            background: #fdecea;
+            color: #dc2626;
+        }
+
+        .statusTitle.statusOpen {
+            color: #16a34a;
+        }
+
+        .statusTitle.statusClosed {
+            color: #dc2626;
         }
 
         .statGrid {
@@ -1040,6 +1305,25 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
         .requestModalBody .form-select:focus {
             border-color: #0b5ed7;
             box-shadow: 0 0 0 4px rgba(11, 94, 215, 0.12);
+        }
+
+        .profileRequestStatusText {
+            color: var(--userInk);
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0 0 18px;
+        }
+
+        .profileModalAvatar.statusSuccess {
+            color: #16a34a;
+        }
+
+        .profileModalAvatar.statusError {
+            color: #dc2626;
+        }
+
+        .profileModalAvatar.statusWarning {
+            color: #d97706;
         }
 
         .userPageMotion,
@@ -1444,21 +1728,21 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
 
             <aside class="statusPanel userCard">
                 <div class="statusHeader">
-                    <div class="statusIcon">
-                        <i class="fa-solid fa-calendar-check"></i>
+                    <div class="statusIcon <?php echo $ivoteph_election_css_class; ?>" id="electionStatusIcon">
+                        <i class="fa-solid <?php echo $ivoteph_election_icon_class; ?>" id="electionStatusIconGlyph"></i>
                     </div>
 
                     <div>
                         <p class="statusLabel">Official Voting Window</p>
-                        <h3 class="statusTitle">Scheduled</h3>
+                        <h3 class="statusTitle <?php echo $ivoteph_election_css_class; ?>" id="electionStatusTitle"><?php echo ivoteph_h($ivoteph_election_runtime_status); ?></h3>
                     </div>
                 </div>
 
-                <p class="text-muted mb-0">
-                    The voting page will follow the schedule controlled by the admin panel.
+                <p class="text-muted mb-0" id="electionStatusMessage">
+                    <?php echo ivoteph_h($ivoteph_election_message); ?>
                 </p>
 
-                <div class="countdownGrid" aria-label="Election countdown">
+                <div class="countdownGrid" aria-label="Election countdown" id="electionCountdownGrid" <?php echo ($ivoteph_election_runtime_status !== 'Scheduled') ? 'style="display: none;"' : ''; ?>>
                     <div class="countdownUnit">
                         <span class="countdownValue" id="cdDays">--</span>
                         <span class="countdownUnitLabel">DAYS</span>
@@ -1485,44 +1769,6 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
                     View Results
                 </a>
             </aside>
-        </section>
-
-        <section class="statGrid">
-            <div class="statCard userCard">
-                <div class="statIcon">
-                    <i class="fa-solid fa-id-card"></i>
-                </div>
-                <span>Voter ID</span>
-                <strong>Verified</strong>
-                <small>Ready for voting access</small>
-            </div>
-
-            <div class="statCard userCard">
-                <div class="statIcon">
-                    <i class="fa-solid fa-lock"></i>
-                </div>
-                <span>Ballot</span>
-                <strong>Private</strong>
-                <small>Selections are confidential</small>
-            </div>
-
-            <div class="statCard userCard">
-                <div class="statIcon">
-                    <i class="fa-solid fa-clock"></i>
-                </div>
-                <span>Status</span>
-                <strong>Pending</strong>
-                <small>Vote not yet submitted</small>
-            </div>
-
-            <div class="statCard userCard">
-                <div class="statIcon">
-                    <i class="fa-solid fa-chart-simple"></i>
-                </div>
-                <span>Results</span>
-                <strong>Live</strong>
-                <small>After voting closes</small>
-            </div>
         </section>
 
         <section class="contentGrid indexQuickActionsSection">
@@ -1851,19 +2097,151 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
         </div>
     </div>
 
+    <div class="modal fade" id="profileRequestStatusModal" tabindex="-1" aria-labelledby="profileRequestStatusModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content profileModalContent">
+                <div class="profileModalHeader">
+                    <div class="profileModalAvatar" id="profileRequestStatusAvatar">
+                        <i class="fa-solid fa-circle-check" id="profileRequestStatusIcon"></i>
+                    </div>
+                    <h5 id="profileRequestStatusModalLabel">Request Submitted</h5>
+                </div>
+
+                <div class="requestModalBody">
+                    <p class="profileRequestStatusText" id="profileRequestStatusMessage"></p>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary py-3 rounded-4 fw-bold" data-bs-dismiss="modal">
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="footer">
         <div>© 2026 iVotePH. Secure. Accessible. Transparent.</div>
     </footer>
 
     <script>
-        var targetDate = new Date('2027-05-01T08:00:00+08:00');
+        var ivotePhVoterId = <?php echo json_encode($profile_voter_id); ?>;
+        var ivotePhElectionStatus = <?php echo json_encode($ivoteph_election_runtime_status); ?>;
+        var ivotePhElectionStart = <?php echo json_encode($ivoteph_election_start_js); ?>;
+        var ivotePhElectionEnd = <?php echo json_encode($ivoteph_election_end_js); ?>;
+        var ivotePhServerNowText = <?php echo json_encode(date('Y-m-d\TH:i:s') . '+08:00'); ?>;
+        var ivotePhPageLoadedAt = Date.now();
 
         function padNumber(value) {
             return String(value).padStart(2, '0');
         }
 
+        function ivotePhStatusCssClass(status) {
+            if (status === 'Open') {
+                return 'statusOpen';
+            }
+
+            if (status === 'Closed') {
+                return 'statusClosed';
+            }
+
+            return 'statusScheduled';
+        }
+
+        function ivotePhStatusIconClass(status) {
+            if (status === 'Open') {
+                return 'fa-lock-open';
+            }
+
+            if (status === 'Closed') {
+                return 'fa-lock';
+            }
+
+            return 'fa-calendar-check';
+        }
+
+        function ivotePhFormatDateTime(isoText) {
+            if (!isoText) {
+                return '';
+            }
+
+            var dateObj = new Date(isoText);
+
+            if (isNaN(dateObj.getTime())) {
+                return '';
+            }
+
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            var hour = dateObj.getHours();
+            var ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12;
+
+            if (hour === 0) {
+                hour = 12;
+            }
+
+            return months[dateObj.getMonth()] + ' ' + padNumber(dateObj.getDate()) + ', ' + dateObj.getFullYear() +
+                ' ' + padNumber(hour) + ':' + padNumber(dateObj.getMinutes()) + ' ' + ampm;
+        }
+
+        function ivotePhStatusMessage(status) {
+            if (status === 'Open') {
+                var endText = ivotePhFormatDateTime(ivotePhElectionEnd);
+                return endText ? ('Voting is open now. It closes on ' + endText + '.') : 'Voting is open now. Cast your ballot before it closes.';
+            }
+
+            if (status === 'Closed') {
+                return 'Voting is closed. Check the Results page for the official outcome.';
+            }
+
+            var startText = ivotePhFormatDateTime(ivotePhElectionStart);
+            return startText ? ('Voting opens on ' + startText + '.') : 'The voting page will follow the schedule controlled by the admin panel.';
+        }
+
+        function ivotePhApplyElectionStatus(status) {
+            var iconWrap = document.getElementById('electionStatusIcon');
+            var iconGlyph = document.getElementById('electionStatusIconGlyph');
+            var titleEl = document.getElementById('electionStatusTitle');
+            var messageEl = document.getElementById('electionStatusMessage');
+            var countdownGrid = document.getElementById('electionCountdownGrid');
+            var cssClass = ivotePhStatusCssClass(status);
+
+            if (iconWrap) {
+                iconWrap.classList.remove('statusOpen', 'statusClosed', 'statusScheduled');
+                iconWrap.classList.add(cssClass);
+            }
+
+            if (iconGlyph) {
+                iconGlyph.className = 'fa-solid ' + ivotePhStatusIconClass(status);
+            }
+
+            if (titleEl) {
+                titleEl.classList.remove('statusOpen', 'statusClosed', 'statusScheduled');
+                titleEl.classList.add(cssClass);
+                titleEl.textContent = status;
+            }
+
+            if (messageEl) {
+                messageEl.textContent = ivotePhStatusMessage(status);
+            }
+
+            if (countdownGrid) {
+                countdownGrid.style.display = (status === 'Scheduled') ? '' : 'none';
+            }
+        }
+
         function updateCountdown() {
-            var diff = Math.max(0, targetDate.getTime() - Date.now());
+            if (ivotePhElectionStatus !== 'Scheduled' || !ivotePhElectionStart) {
+                return;
+            }
+
+            var serverNow = new Date(ivotePhServerNowText).getTime();
+            var offset = serverNow - ivotePhPageLoadedAt;
+            var now = Date.now() + offset;
+
+            var startMs = new Date(ivotePhElectionStart).getTime();
+            var diff = Math.max(0, startMs - now);
+
             var days = Math.floor(diff / 86400000);
             var hours = Math.floor((diff % 86400000) / 3600000);
             var minutes = Math.floor((diff % 3600000) / 60000);
@@ -1883,6 +2261,30 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             }
         }
 
+        function ivotePhSyncElectionStatus() {
+            fetch('election_status.php?_=' + Date.now())
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data || !data.success) {
+                        return;
+                    }
+
+                    ivotePhServerNowText = data.server_time;
+                    ivotePhPageLoadedAt = Date.now();
+                    ivotePhElectionStatus = data.runtime_status;
+                    ivotePhElectionStart = data.start_datetime;
+                    ivotePhElectionEnd = data.end_datetime;
+
+                    ivotePhApplyElectionStatus(ivotePhElectionStatus);
+                    updateCountdown();
+                })
+                .catch(function () {
+                    /* Keep showing the last known status if the live check fails. */
+                });
+        }
+
         function openProfileRequestModal() {
             var profileModalElement = document.getElementById('profileModal');
             var requestModalElement = document.getElementById('profileRequestModal');
@@ -1899,6 +2301,77 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             }, 250);
         }
 
+        function showProfileRequestStatusModal(type, title, message, reopenRequestModalOnClose) {
+            var avatar = document.getElementById('profileRequestStatusAvatar');
+            var icon = document.getElementById('profileRequestStatusIcon');
+            var titleEl = document.getElementById('profileRequestStatusModalLabel');
+            var messageEl = document.getElementById('profileRequestStatusMessage');
+            var statusModalElement = document.getElementById('profileRequestStatusModal');
+
+            var icons = {
+                success: 'fa-solid fa-circle-check',
+                error: 'fa-solid fa-circle-exclamation',
+                warning: 'fa-solid fa-triangle-exclamation'
+            };
+
+            if (avatar) {
+                avatar.classList.remove('statusSuccess', 'statusError', 'statusWarning');
+                avatar.classList.add('status' + type.charAt(0).toUpperCase() + type.slice(1));
+            }
+
+            if (icon) {
+                icon.className = icons[type] || icons.error;
+            }
+
+            if (titleEl) {
+                titleEl.textContent = title;
+            }
+
+            if (messageEl) {
+                messageEl.textContent = message;
+            }
+
+            if (statusModalElement) {
+                statusModalElement.setAttribute('data-reopen-request', reopenRequestModalOnClose ? 'true' : 'false');
+
+                var statusModal = bootstrap.Modal.getInstance(statusModalElement) || new bootstrap.Modal(statusModalElement);
+                statusModal.show();
+            }
+        }
+
+        function closeRequestModalThenShowStatus(type, title, message, reopenRequestModalOnClose) {
+            var requestModalElement = document.getElementById('profileRequestModal');
+            var requestModal = bootstrap.Modal.getInstance(requestModalElement);
+
+            if (requestModal) {
+                requestModal.hide();
+            }
+
+            setTimeout(function () {
+                showProfileRequestStatusModal(type, title, message, reopenRequestModalOnClose);
+            }, 250);
+        }
+
+        (function () {
+            var statusModalElement = document.getElementById('profileRequestStatusModal');
+
+            if (statusModalElement) {
+                statusModalElement.addEventListener('hidden.bs.modal', function () {
+                    var shouldReopen = statusModalElement.getAttribute('data-reopen-request') === 'true';
+                    statusModalElement.removeAttribute('data-reopen-request');
+
+                    if (shouldReopen) {
+                        var requestModalElement = document.getElementById('profileRequestModal');
+                        var requestModal = new bootstrap.Modal(requestModalElement);
+
+                        setTimeout(function () {
+                            requestModal.show();
+                        }, 250);
+                    }
+                });
+            }
+        })();
+
         function submitProfileChangeRequest(event) {
             event.preventDefault();
 
@@ -1906,20 +2379,63 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
             var requestMessage = document.getElementById('requestMessage').value;
 
             if (!requestField || !requestMessage.trim()) {
-                alert('Please complete the profile change request form.');
+                closeRequestModalThenShowStatus('warning', 'Incomplete Form', 'Please complete the profile change request form.', true);
                 return;
             }
 
-            alert('Your profile change request has been prepared. Later, this will be sent to the admin side once connected to the database.');
+            var submitButton = event.target.querySelector('button[type="submit"]');
+            var originalButtonHtml = submitButton ? submitButton.innerHTML : '';
 
-            document.getElementById('profileChangeRequestForm').reset();
-
-            var requestModalElement = document.getElementById('profileRequestModal');
-            var requestModal = bootstrap.Modal.getInstance(requestModalElement);
-
-            if (requestModal) {
-                requestModal.hide();
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = 'Submitting...';
             }
+
+            var formData = new FormData();
+            formData.append('voter_id', ivotePhVoterId);
+            formData.append('request_field', requestField);
+            formData.append('request_message', requestMessage);
+
+            fetch('submit_profile_request.php', {
+                method: 'POST',
+                body: formData
+            })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data && data.success) {
+                        document.getElementById('profileChangeRequestForm').reset();
+
+                        closeRequestModalThenShowStatus(
+                            'success',
+                            'Request Submitted',
+                            data.message || 'Your profile change request has been submitted to the admin.',
+                            false
+                        );
+                    } else {
+                        closeRequestModalThenShowStatus(
+                            'error',
+                            'Submission Failed',
+                            (data && data.message) || 'Failed to submit your request. Please try again.',
+                            true
+                        );
+                    }
+                })
+                .catch(function () {
+                    closeRequestModalThenShowStatus(
+                        'error',
+                        'Submission Failed',
+                        'Failed to submit your request. Please check your connection and try again.',
+                        true
+                    );
+                })
+                .finally(function () {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonHtml;
+                    }
+                });
         }
 
         function logoutUser() {
@@ -1928,6 +2444,7 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
 
         updateCountdown();
         setInterval(updateCountdown, 1000);
+        setInterval(ivotePhSyncElectionStatus, 5000);
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>

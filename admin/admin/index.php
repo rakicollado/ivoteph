@@ -70,7 +70,7 @@ function dashboard_format_datetime($value)
         return '-';
     }
 
-    return date('M d, Y h:i A', $time);
+    return date('M d, Y', $time) . '<br><span class="ivote-datetime-time">' . date('h:i A', $time) . '</span>';
 }
 
 $total_voter_ids = dashboard_count_query($pdo, "SELECT COUNT(*) FROM registered_voters");
@@ -111,7 +111,7 @@ $active_elections = 0;
 $latest_election = false;
 
 if (dashboard_table_exists($pdo, 'elections')) {
-    $active_elections = dashboard_count_query($pdo, "SELECT COUNT(*) FROM elections WHERE LOWER(status) = 'open' OR LOWER(status) = 'active'");
+    $active_elections = dashboard_count_query($pdo, "SELECT COUNT(*) FROM elections WHERE LOWER(election_status) = 'open' OR LOWER(election_status) = 'active'");
 
     if (dashboard_column_exists($pdo, 'elections', 'created_at')) {
         $latest_election = dashboard_one_query($pdo, "SELECT * FROM elections ORDER BY created_at DESC LIMIT 1");
@@ -127,6 +127,12 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 ?>
 
 <style>
+    .ivote-datetime-time {
+        font-size: 0.85em;
+        font-weight: 400;
+        color: #6b7280;
+    }
+
     .ivote-profile-request-badge {
         margin-top: 8px;
         display: inline-flex;
@@ -228,9 +234,9 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     $election_title = $latest_election['title'];
                 }
 
-                $election_status = isset($latest_election['status']) ? $latest_election['status'] : 'Scheduled';
-                $start_date = isset($latest_election['start_date']) ? $latest_election['start_date'] : '';
-                $end_date = isset($latest_election['end_date']) ? $latest_election['end_date'] : '';
+                $election_status = isset($latest_election['election_status']) ? $latest_election['election_status'] : (isset($latest_election['status']) ? $latest_election['status'] : 'Scheduled');
+                $start_date = isset($latest_election['start_datetime']) ? $latest_election['start_datetime'] : (isset($latest_election['start_date']) ? $latest_election['start_date'] : '');
+                $end_date = isset($latest_election['end_datetime']) ? $latest_election['end_datetime'] : (isset($latest_election['end_date']) ? $latest_election['end_date'] : '');
                 ?>
 
                 <div class="ivote-election-control-shell">
@@ -242,7 +248,14 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                         </div>
 
                         <div class="ivote-election-hero-right">
-                            <span class="badge text-bg-primary">
+                            <?php
+                            $badge_class = 'text-bg-secondary';
+                            $status_lower = strtolower(trim($election_status));
+                            if ($status_lower == 'open') { $badge_class = 'text-bg-success'; }
+                            elseif ($status_lower == 'scheduled') { $badge_class = 'text-bg-primary'; }
+                            elseif ($status_lower == 'closed') { $badge_class = 'text-bg-danger'; }
+                            ?>
+                            <span class="badge <?php echo $badge_class; ?>">
                                 <?php echo e(ucfirst($election_status)); ?>
                             </span>
                         </div>
@@ -251,12 +264,12 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
                     <div class="ivote-election-info-grid">
                         <div class="ivote-election-info-card">
                             <span>Start Date</span>
-                            <strong><?php echo e(dashboard_format_datetime($start_date)); ?></strong>
+                            <strong><?php echo dashboard_format_datetime($start_date); ?></strong>
                         </div>
 
                         <div class="ivote-election-info-card">
                             <span>End Date</span>
-                            <strong><?php echo e(dashboard_format_datetime($end_date)); ?></strong>
+                            <strong><?php echo dashboard_format_datetime($end_date); ?></strong>
                         </div>
 
                         <div class="ivote-election-info-card">
