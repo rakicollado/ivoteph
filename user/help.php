@@ -321,6 +321,7 @@ if (isset($conn) && $conn && isset($profile_voter_id) && trim((string) $profile_
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Help Center - iVotePH</title>
+    <link rel="icon" type="image/png" href="logo.png">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">

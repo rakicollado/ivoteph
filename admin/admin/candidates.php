@@ -46,7 +46,6 @@ function candidate_safe_audit($message)
     try {
         audit_log($message);
     } catch (Exception $e) {
-        /* Do not block candidate add/edit/delete just because audit logging failed. */
     }
 }
 
