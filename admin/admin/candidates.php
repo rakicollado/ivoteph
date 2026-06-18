@@ -681,10 +681,14 @@ $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $total_candidates = 0;
 $total_positions = 0;
+$count_national = 0;
+$count_local = 0;
 
 try {
     $total_candidates = (int) $pdo->query("SELECT COUNT(*) FROM candidates")->fetchColumn();
     $total_positions = (int) $pdo->query("SELECT COUNT(*) FROM positions")->fetchColumn();
+    $count_national = (int) $pdo->query("SELECT COUNT(*) FROM candidates WHERE election_scope = 'National'")->fetchColumn();
+    $count_local = (int) $pdo->query("SELECT COUNT(*) FROM candidates WHERE election_scope = 'Local'")->fetchColumn();
 } catch (Exception $e) {
 }
 
@@ -698,8 +702,8 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 /* ── Candidates page polish ─────────────────────────────────── */
 .ivote-management-page {
     padding: 0;
-    max-width: 100%;
-    margin: 0;
+    max-width: 1500px;
+    margin: 0 auto;
 }
 
 /* Filter bar */
@@ -1013,11 +1017,79 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
 .ivote-modal .btn-close { filter: brightness(0) invert(1); }
 .ivote-modal .modal-content { border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(6,71,184,0.18); }
 
+/* Stat cards */
+.ivote-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.ivote-stat-card {
+    background: #ffffff;
+    border: 1px solid #e4ecf7;
+    border-radius: 18px;
+    padding: 22px 20px;
+    box-shadow: 0 2px 8px rgba(6, 71, 184, 0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.ivote-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #eef5ff;
+    color: #0647b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+.ivote-stat-icon.green  { background: #f0fdf4; color: #16a34a; }
+.ivote-stat-icon.yellow { background: #fffbeb; color: #b45309; }
+.ivote-stat-icon.red    { background: #fff5f5; color: #d92d20; }
+.ivote-stat-icon.purple { background: #f5f3ff; color: #7c3aed; }
+.ivote-stat-icon.teal   { background: #f0fdfa; color: #0d9488; }
+
+.ivote-stat-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #667085;
+    margin-bottom: 4px;
+}
+
+.ivote-stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0d1b3e;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 4px;
+    margin-top: 0;
+}
+
+.ivote-stat-caption {
+    font-size: 12px;
+    color: #98a2b3;
+    margin: 0;
+}
+
+@media (max-width: 1200px) {
+    .ivote-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 768px) {
     .ivote-management-page { padding: 0; }
     .ivote-filter-form > div { min-width: 100%; flex: 1 1 100%; }
     .ivote-candidate-profile { flex-direction: column; }
     .ivote-profile-view { grid-template-columns: 1fr; }
+    .ivote-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
 
@@ -1033,6 +1105,33 @@ require_once dirname(__FILE__) . '/../includes/sidebar.php';
             <?php } ?>
         </div>
     <?php } ?>
+
+    <div class="ivote-stats-grid">
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon"><i class="bi bi-people-fill"></i></div>
+            <h3 class="ivote-stat-title">Total Candidates</h3>
+            <p class="ivote-stat-value"><?php echo number_format($total_candidates); ?></p>
+            <p class="ivote-stat-caption">All candidate records</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon purple"><i class="bi bi-bookmark-star-fill"></i></div>
+            <h3 class="ivote-stat-title">Total Positions</h3>
+            <p class="ivote-stat-value"><?php echo number_format($total_positions); ?></p>
+            <p class="ivote-stat-caption">Available positions</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon teal"><i class="bi bi-globe2"></i></div>
+            <h3 class="ivote-stat-title">National Candidates</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_national); ?></p>
+            <p class="ivote-stat-caption">Running nationwide</p>
+        </div>
+        <div class="ivote-stat-card">
+            <div class="ivote-stat-icon yellow"><i class="bi bi-geo-alt-fill"></i></div>
+            <h3 class="ivote-stat-title">Local Candidates</h3>
+            <p class="ivote-stat-value"><?php echo number_format($count_local); ?></p>
+            <p class="ivote-stat-caption">Running for local seats</p>
+        </div>
+    </div>
 
     <div class="ivote-filter-card">
         <form method="GET" action="candidates.php" class="ivote-filter-form">

@@ -17,6 +17,10 @@ if (isset($_GET['error'])) {
         $error_message = 'Passwords do not match.';
     } elseif ($_GET['error'] == 'weak_password') {
         $error_message = 'Password must be at least 8 characters long.';
+    } elseif ($_GET['error'] == 'invalid_name') {
+        $error_message = 'Names must only contain letters (no numbers or symbols).';
+    } elseif ($_GET['error'] == 'invalid_mobile') {
+        $error_message = 'Please enter a valid 10-digit mobile number (e.g., 9123456789).';
     } elseif ($_GET['error'] == 'invalid_voter') {
         $error_message = 'Voter ID does not exist in the official voter database.';
     } elseif ($_GET['error'] == 'already_registered') {
@@ -105,6 +109,38 @@ if (isset($_GET['error'])) {
             color: #667085;
             margin-top: 6px;
         }
+
+        .fieldHint {
+            font-size: 12px;
+            color: #667085;
+            margin-top: 6px;
+        }
+
+        .passwordInputWrapper {
+            position: relative;
+        }
+
+        .passwordInputWrapper .formInput {
+            padding-right: 42px;
+        }
+
+        .togglePasswordBtn {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            padding: 6px;
+            color: #667085;
+            cursor: pointer;
+            line-height: 1;
+            font-size: 14px;
+        }
+
+        .togglePasswordBtn:hover {
+            color: #0647b8;
+        }
     </style>
 </head>
 
@@ -148,21 +184,24 @@ if (isset($_GET['error'])) {
                         <div class="col-md-4">
                             <div class="formGroup">
                                 <label for="first_name" class="formLabel">First Name</label>
-                                <input id="first_name" name="first_name" type="text" class="formInput" required>
+                                <input id="first_name" name="first_name" type="text" class="formInput lettersOnly" required>
+                                <div class="fieldHint">Letters only.</div>
                             </div>
                         </div>
 
                         <div class="col-md-4">
                             <div class="formGroup">
                                 <label for="middle_name" class="formLabel">Middle Name</label>
-                                <input id="middle_name" name="middle_name" type="text" class="formInput">
+                                <input id="middle_name" name="middle_name" type="text" class="formInput lettersOnly">
+                                <div class="fieldHint">Letters only.</div>
                             </div>
                         </div>
 
                         <div class="col-md-4">
                             <div class="formGroup">
                                 <label for="last_name" class="formLabel">Last Name</label>
-                                <input id="last_name" name="last_name" type="text" class="formInput" required>
+                                <input id="last_name" name="last_name" type="text" class="formInput lettersOnly" required>
+                                <div class="fieldHint">Letters only.</div>
                             </div>
                         </div>
                     </div>
@@ -195,10 +234,13 @@ if (isset($_GET['error'])) {
                                         id="mobile_number" 
                                         name="mobile_number" 
                                         type="tel" 
-                                        class="formInput" 
+                                        class="formInput digitsOnly" 
                                         placeholder="9123456789" 
+                                        inputmode="numeric"
+                                        maxlength="10"
                                         required>
                                 </div>
+                                <div class="fieldHint">Numbers only, 10 digits.</div>
                             </div>
                         </div>
                     </div>
@@ -269,7 +311,12 @@ if (isset($_GET['error'])) {
                         <div class="col-md-6">
                             <div class="formGroup">
                                 <label for="password" class="formLabel">Password</label>
-                                <input id="password" name="password" type="password" class="formInput" required>
+                                <div class="passwordInputWrapper">
+                                    <input id="password" name="password" type="password" class="formInput" required>
+                                    <button type="button" class="togglePasswordBtn" data-target="password" aria-label="Show password">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
                                 <div class="passwordNote">Minimum of 8 characters.</div>
                             </div>
                         </div>
@@ -277,7 +324,12 @@ if (isset($_GET['error'])) {
                         <div class="col-md-6">
                             <div class="formGroup">
                                 <label for="confirm_password" class="formLabel">Confirm Password</label>
-                                <input id="confirm_password" name="confirm_password" type="password" class="formInput" required>
+                                <div class="passwordInputWrapper">
+                                    <input id="confirm_password" name="confirm_password" type="password" class="formInput" required>
+                                    <button type="button" class="togglePasswordBtn" data-target="confirm_password" aria-label="Show password">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -300,6 +352,56 @@ if (isset($_GET['error'])) {
             </div>
         </div>
     </div>
+
+    <script>
+        (function () {
+            var lettersOnlyPattern = /[^\p{L}\s'\-.]/gu;
+            var digitsOnlyPattern = /[^0-9]/g;
+
+            document.querySelectorAll('.lettersOnly').forEach(function (input) {
+                input.addEventListener('input', function () {
+                    var cursor = input.selectionStart;
+                    var originalLength = input.value.length;
+                    input.value = input.value.replace(lettersOnlyPattern, '');
+                    cursor -= (originalLength - input.value.length);
+                    input.setSelectionRange(cursor, cursor);
+                });
+            });
+
+            document.querySelectorAll('.digitsOnly').forEach(function (input) {
+                input.addEventListener('input', function () {
+                    var cursor = input.selectionStart;
+                    var originalLength = input.value.length;
+                    input.value = input.value.replace(digitsOnlyPattern, '');
+                    cursor -= (originalLength - input.value.length);
+                    input.setSelectionRange(cursor, cursor);
+                });
+            });
+
+            document.querySelectorAll('.togglePasswordBtn').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var targetInput = document.getElementById(button.getAttribute('data-target'));
+                    var icon = button.querySelector('i');
+
+                    if (!targetInput) {
+                        return;
+                    }
+
+                    if (targetInput.type === 'password') {
+                        targetInput.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                        button.setAttribute('aria-label', 'Hide password');
+                    } else {
+                        targetInput.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                        button.setAttribute('aria-label', 'Show password');
+                    }
+                });
+            });
+        })();
+    </script>
 
     <script>
         (function () {
@@ -523,6 +625,23 @@ if (isset($_GET['error'])) {
             registerForm.addEventListener('submit', function (e) {
                 var password = document.getElementById('password').value;
                 var confirmPassword = document.getElementById('confirm_password').value;
+                var firstName = document.getElementById('first_name').value.trim();
+                var middleName = document.getElementById('middle_name').value.trim();
+                var lastName = document.getElementById('last_name').value.trim();
+                var mobileNumber = document.getElementById('mobile_number').value.trim();
+                var namePattern = /^[\p{L}\s'\-.]+$/u;
+
+                if (firstName == '' || !namePattern.test(firstName) || lastName == '' || !namePattern.test(lastName) || (middleName != '' && !namePattern.test(middleName))) {
+                    e.preventDefault();
+                    alert('Names must only contain letters (no numbers or symbols).');
+                    return false;
+                }
+
+                if (!/^[0-9]{10}$/.test(mobileNumber)) {
+                    e.preventDefault();
+                    alert('Please enter a valid 10-digit mobile number.');
+                    return false;
+                }
 
                 if (password !== confirmPassword) {
                     e.preventDefault();

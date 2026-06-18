@@ -94,14 +94,6 @@ function voter_form_fields($voter, $is_edit)
                     <?php echo $is_edit ? 'readonly' : 'required'; ?>>
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Registration Status *</label>
-                <select name="registration_status" class="form-select" required>
-                    <option value="Unregistered" <?php echo ((isset($voter['registration_status']) ? $voter['registration_status'] : '') == 'Unregistered') ? 'selected' : ''; ?>>Unregistered</option>
-                    <option value="Registered" <?php echo ((isset($voter['registration_status']) ? $voter['registration_status'] : '') == 'Registered') ? 'selected' : ''; ?>>Registered</option>
-                    <option value="Blocked" <?php echo ((isset($voter['registration_status']) ? $voter['registration_status'] : '') == 'Blocked') ? 'selected' : ''; ?>>Blocked</option>
-                </select>
-            </div>
         </div>
     </div>
 

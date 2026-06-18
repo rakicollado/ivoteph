@@ -55,6 +55,22 @@ function register_official_value_matches($official_value, $submitted_value)
     return register_normalize_text($official_value) == register_normalize_text($submitted_value);
 }
 
+function register_is_valid_name($value)
+{
+    $value = register_clean($value);
+
+    if ($value == '') {
+        return true;
+    }
+
+    return (bool) preg_match("/^[\p{L}\s'\-\.]+$/u", $value);
+}
+
+function register_is_valid_mobile($value)
+{
+    return (bool) preg_match('/^9\d{9}$/', $value);
+}
+
 if ($_SERVER['REQUEST_METHOD'] != 'POST') {
     header('Location: register.php');
     exit();
@@ -79,6 +95,10 @@ $certify = isset($_POST['certify']) ? register_clean($_POST['certify']) : '';
 
 if ($voter_id == '' || $first_name == '' || $last_name == '' || $birth_date == '' || $sex == '' || $mobile_number == '' || $email == '' || $region == '' || $province == '' || $city_municipality == '' || $barangay == '' || $specific_address == '' || $password == '' || $confirm_password == '') {
     register_redirect_error('empty');
+}
+
+if (!register_is_valid_name($first_name) || !register_is_valid_name($middle_name) || !register_is_valid_name($last_name)) {
+    register_redirect_error('invalid_name');
 }
 
 if ($certify != '1') {
@@ -117,6 +137,10 @@ if (strpos($mobile_number, '0') === 0 && strlen($mobile_number) == 11) {
 
 if ($mobile_number == '') {
     register_redirect_error('empty');
+}
+
+if (!register_is_valid_mobile($mobile_number)) {
+    register_redirect_error('invalid_mobile');
 }
 
 mysqli_autocommit($conn, false);
